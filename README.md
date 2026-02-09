@@ -558,6 +558,10 @@ zig build -Dtarget=aarch64-macos
 zig build -Dtarget=x86_64-windows
 ```
 
+## Contributing
+
+Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
 ## License
 
 MIT License - see LICENSE file for details.
