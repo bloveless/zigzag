@@ -441,6 +441,13 @@ By default (`null`/`auto`), ZigZag:
 - probes kitty text-sizing support,
 - applies terminal/multiplexer heuristics (e.g. tmux/screen/zellij favor legacy width).
 
+### Allocator Lifetimes
+
+`ctx.allocator` is a frame allocator that is reset before each `tick()`.
+Use it for temporary values (render strings, per-frame buffers).
+
+For model state that must live across frames, allocate with `ctx.persistent_allocator`.
+
 ### Custom Event Loop
 
 For applications that need to do other work between frames (network polling, background processing, etc.), use `start()` + `tick()` instead of `run()`:

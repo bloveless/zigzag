@@ -66,14 +66,15 @@ pub fn Program(comptime Model: type) type {
 
         /// Initialize with custom options
         pub fn initWithOptions(allocator: std.mem.Allocator, options: Options) !Self {
-            var arena = std.heap.ArenaAllocator.init(allocator);
-
+            const arena = std.heap.ArenaAllocator.init(allocator);
             const self = Self{
                 .allocator = allocator,
                 .arena = arena,
                 .model = undefined,
                 .terminal = null,
-                .context = Context.init(arena.allocator(), allocator),
+                // `self` is returned by value, so don't capture an arena allocator here.
+                // It would point at this function's stack copy and dangle after return.
+                .context = Context.init(allocator, allocator),
                 .options = options,
                 .running = false,
                 .start_time = std.time.nanoTimestamp(),
@@ -172,6 +173,8 @@ pub fn Program(comptime Model: type) type {
             self.context.kitty_text_sizing = width_caps.kitty_text_sizing;
             unicode.setWidthStrategy(effective_width_strategy);
 
+            self.resetFrameAllocator();
+
             // Initialize the model
             const init_cmd = self.model.init(&self.context);
             try self.processCommand(init_cmd);
@@ -206,9 +209,7 @@ pub fn Program(comptime Model: type) type {
             self.context.elapsed = @intCast(self.last_frame_time - self.start_time);
             self.context.frame += 1;
 
-            // Reset arena for this frame
-            _ = self.arena.reset(.retain_capacity);
-            self.context.allocator = self.arena.allocator();
+            self.resetFrameAllocator();
 
             // Check for resize
             if (self.terminal.?.checkResize()) {
@@ -481,6 +482,11 @@ pub fn Program(comptime Model: type) type {
                     }
                 },
             }
+        }
+
+        fn resetFrameAllocator(self: *Self) void {
+            _ = self.arena.reset(.retain_capacity);
+            self.context.allocator = self.arena.allocator();
         }
 
         fn render(self: *Self) !void {
