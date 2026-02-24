@@ -45,8 +45,9 @@ pub fn Program(comptime Model: type) type {
         context: Context,
         options: Options,
         running: bool,
-        start_time: i128,
-        last_frame_time: i128,
+        clock: std.time.Timer,
+        start_time: u64,
+        last_frame_time: u64,
         pending_tick: ?u64,
         every_interval: ?u64,
         last_every_tick: u64,
@@ -67,6 +68,8 @@ pub fn Program(comptime Model: type) type {
         /// Initialize with custom options
         pub fn initWithOptions(allocator: std.mem.Allocator, options: Options) !Self {
             const arena = std.heap.ArenaAllocator.init(allocator);
+            var clock = try std.time.Timer.start();
+            const now = clock.read();
             const self = Self{
                 .allocator = allocator,
                 .arena = arena,
@@ -77,8 +80,9 @@ pub fn Program(comptime Model: type) type {
                 .context = Context.init(allocator, allocator),
                 .options = options,
                 .running = false,
-                .start_time = std.time.nanoTimestamp(),
-                .last_frame_time = std.time.nanoTimestamp(),
+                .clock = clock,
+                .start_time = now,
+                .last_frame_time = now,
                 .pending_tick = null,
                 .every_interval = null,
                 .last_every_tick = 0,
@@ -173,6 +177,13 @@ pub fn Program(comptime Model: type) type {
             self.context.kitty_text_sizing = width_caps.kitty_text_sizing;
             unicode.setWidthStrategy(effective_width_strategy);
 
+            self.clock.reset();
+            self.start_time = self.clock.read();
+            self.last_frame_time = self.start_time;
+            self.context.elapsed = 0;
+            self.context.delta = 0;
+            self.context.frame = 0;
+
             self.resetFrameAllocator();
 
             // Initialize the model
@@ -189,8 +200,8 @@ pub fn Program(comptime Model: type) type {
 
         /// Execute a single frame: poll input, process events, render.
         pub fn tick(self: *Self) !void {
-            const now = std.time.nanoTimestamp();
-            const delta = @as(u64, @intCast(now - self.last_frame_time));
+            const now = self.clock.read();
+            const delta = now - self.last_frame_time;
 
             // Enforce framerate limit
             const min_frame_time_ns: u64 = if (self.options.fps > 0)
@@ -202,11 +213,12 @@ pub fn Program(comptime Model: type) type {
                 std.Thread.sleep(min_frame_time_ns - delta);
             }
 
-            self.last_frame_time = std.time.nanoTimestamp();
-            const actual_delta = @as(u64, @intCast(self.last_frame_time - now + @as(i128, @intCast(delta))));
+            const frame_time = self.clock.read();
+            const actual_delta = frame_time - self.last_frame_time;
+            self.last_frame_time = frame_time;
 
             self.context.delta = actual_delta;
-            self.context.elapsed = @intCast(self.last_frame_time - self.start_time);
+            self.context.elapsed = frame_time - self.start_time;
             self.context.frame += 1;
 
             self.resetFrameAllocator();
@@ -252,8 +264,8 @@ pub fn Program(comptime Model: type) type {
                     // Deliver tick to user's update if Model.Msg has a tick variant
                     if (@hasField(UserMsg, "tick")) {
                         const user_msg = UserMsg{ .tick = .{
-                            .timestamp = @intCast(now),
-                            .delta = delta,
+                            .timestamp = @intCast(frame_time),
+                            .delta = actual_delta,
                         } };
                         const cmd = self.dispatchToModel(user_msg);
                         try self.processCommand(cmd);
@@ -267,8 +279,8 @@ pub fn Program(comptime Model: type) type {
                     self.last_every_tick = self.context.elapsed;
                     if (@hasField(UserMsg, "tick")) {
                         const user_msg = UserMsg{ .tick = .{
-                            .timestamp = @intCast(now),
-                            .delta = delta,
+                            .timestamp = @intCast(frame_time),
+                            .delta = actual_delta,
                         } };
                         const cmd = self.dispatchToModel(user_msg);
                         try self.processCommand(cmd);
@@ -380,6 +392,9 @@ pub fn Program(comptime Model: type) type {
             if (self.terminal) |*term| {
                 term.setup() catch {};
             }
+
+            // Avoid a large post-resume frame delta.
+            self.last_frame_time = self.clock.read();
 
             // Force re-render
             self.last_view_hash = 0;
