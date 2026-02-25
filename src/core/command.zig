@@ -3,6 +3,42 @@
 
 const std = @import("std");
 
+/// Parameters for image rendering by file path.
+pub const ImagePlacement = enum {
+    /// Use the current cursor position.
+    cursor,
+    /// Draw from top-left corner.
+    top_left,
+    /// Draw from top-center using width hint.
+    top_center,
+    /// Center using provided width/height cell hints.
+    center,
+};
+
+/// Parameters for image rendering by file path.
+pub const ImageFile = struct {
+    path: []const u8,
+    width_cells: ?u16 = null,
+    height_cells: ?u16 = null,
+    placement: ImagePlacement = .top_left,
+    /// Optional absolute row (0-indexed). Overrides anchor row when provided.
+    row: ?u16 = null,
+    /// Optional absolute column (0-indexed). Overrides anchor column when provided.
+    col: ?u16 = null,
+    /// Signed row offset (in terminal cells) applied after anchor/absolute position.
+    row_offset: i16 = 0,
+    /// Signed column offset (in terminal cells) applied after anchor/absolute position.
+    col_offset: i16 = 0,
+    preserve_aspect_ratio: bool = true,
+    image_id: ?u32 = null,
+    placement_id: ?u32 = null,
+    move_cursor: bool = true,
+    quiet: bool = true,
+};
+
+/// Backward-compatible alias for existing Kitty-only APIs.
+pub const KittyImageFile = ImageFile;
+
 /// Command type parameterized by the user's message type
 pub fn Cmd(comptime Msg: type) type {
     return union(enum) {
@@ -44,6 +80,12 @@ pub fn Cmd(comptime Msg: type) type {
 
         /// Print a line above the program output
         println: []const u8,
+
+        /// Draw an image file using the best available protocol (Kitty, iTerm2, Sixel)
+        image_file: ImageFile,
+
+        /// Draw an image file via Kitty graphics protocol (no-op if unsupported)
+        kitty_image_file: KittyImageFile,
 
         const Self = @This();
 
@@ -121,6 +163,8 @@ pub const StandardCmd = union(enum) {
     hide_cursor,
     enter_alt_screen,
     exit_alt_screen,
+    image_file: ImageFile,
+    kitty_image_file: KittyImageFile,
 };
 
 /// Combine multiple commands into a batch
