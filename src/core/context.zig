@@ -2,7 +2,9 @@
 //! Provides access to terminal state and resources.
 
 const std = @import("std");
-const Terminal = @import("../terminal/terminal.zig").Terminal;
+const terminal_mod = @import("../terminal/terminal.zig");
+const Terminal = terminal_mod.Terminal;
+const ImageCapabilities = terminal_mod.ImageCapabilities;
 const color_mod = @import("../style/color.zig");
 const unicode_mod = @import("../unicode.zig");
 const Logger = @import("log.zig").Logger;
@@ -267,7 +269,7 @@ pub const Context = struct {
     }
 
     /// Get the current image capabilities of the terminal.
-    pub fn getImageCapabilities(self: *const Context) Terminal.ImageCapabilities {
+    pub fn getImageCapabilities(self: *const Context) ImageCapabilities {
         if (self._terminal) |term| {
             return term.getImageCapabilities();
         }

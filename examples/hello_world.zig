@@ -1,5 +1,12 @@
 //! ZigZag Hello World Example
 //! A minimal example showing the basic structure of a ZigZag application.
+//!
+//! Demonstrates image rendering features:
+//!   'i' — draw image from file (auto protocol detection)
+//!   'c' — cache image and place via Kitty virtual placement
+//!   'z' — toggle z-index (render image behind text, Kitty only)
+//!   'd' — delete all cached images
+//!   'p' — cycle protocol: auto → kitty → iterm2 → sixel
 
 const std = @import("std");
 const zz = @import("zigzag");
@@ -8,10 +15,15 @@ const Model = struct {
     image_supported: bool,
     image_visible: bool,
     image_attempted: bool,
+    image_cached: bool,
+    image_behind_text: bool,
     image_size_cells: u16,
     image_path: []const u8,
+    protocol: zz.ImageProtocol,
+    caps: zz.ImageCapabilities,
 
     const image_gap_lines: u16 = 1;
+    const cache_id: u32 = 42;
 
     const ImageLayout = struct {
         size_cells: u16,
@@ -31,8 +43,12 @@ const Model = struct {
             .image_supported = ctx.supportsImages(),
             .image_visible = false,
             .image_attempted = false,
+            .image_cached = false,
+            .image_behind_text = false,
             .image_size_cells = 0,
             .image_path = "assets/cat.png",
+            .protocol = .auto,
+            .caps = ctx.getImageCapabilities(),
         };
         return .none;
     }
@@ -41,14 +57,64 @@ const Model = struct {
     pub fn update(self: *Model, msg: Msg, ctx: *zz.Context) zz.Cmd(Msg) {
         switch (msg) {
             .key => |k| {
-                // Quit on 'q' or Escape
                 switch (k.key) {
                     .char => |c| switch (c) {
                         'q' => return .quit,
+                        // Draw image from file
                         'i' => {
                             self.image_attempted = true;
                             if (self.image_supported) {
                                 self.image_visible = true;
+                                return self.imageCommand(ctx);
+                            }
+                        },
+                        // Cache image and display via Kitty virtual placement
+                        'c' => {
+                            if (self.caps.kitty_graphics) {
+                                self.image_attempted = true;
+                                self.image_visible = true;
+                                self.image_cached = true;
+                                const layout = self.computeImageLayout(ctx);
+                                return .{ .batch = &.{
+                                    .{ .cache_image = .{
+                                        .source = .{ .file = self.image_path },
+                                        .image_id = cache_id,
+                                    } },
+                                    .{ .place_cached_image = .{
+                                        .image_id = cache_id,
+                                        .width_cells = layout.size_cells,
+                                        .height_cells = layout.size_cells,
+                                        .placement = .top_left,
+                                        .row = layout.row,
+                                        .col = layout.col,
+                                        .move_cursor = false,
+                                    } },
+                                } };
+                            }
+                        },
+                        // Toggle z-index (behind text)
+                        'z' => {
+                            self.image_behind_text = !self.image_behind_text;
+                            if (self.image_visible) {
+                                return self.imageCommand(ctx);
+                            }
+                        },
+                        // Delete cached images
+                        'd' => {
+                            if (self.image_cached) {
+                                self.image_cached = false;
+                                return .{ .delete_image = .all };
+                            }
+                        },
+                        // Cycle protocol
+                        'p' => {
+                            self.protocol = switch (self.protocol) {
+                                .auto => .kitty,
+                                .kitty => .iterm2,
+                                .iterm2 => .sixel,
+                                .sixel => .auto,
+                            };
+                            if (self.image_visible) {
                                 return self.imageCommand(ctx);
                             }
                         },
@@ -77,6 +143,8 @@ const Model = struct {
             .row = layout.row,
             .col = layout.col,
             .move_cursor = false,
+            .protocol = self.protocol,
+            .z_index = if (self.image_behind_text) @as(?i32, -1) else null,
         } };
     }
 
@@ -88,8 +156,8 @@ const Model = struct {
     }
 
     fn textBlockLineCount(_: *const Model) u16 {
-        // title + blank + subtitle + blank + hint + image-hint + status
-        return 7;
+        // title + blank + subtitle + blank + hints (4) + status
+        return 9;
     }
 
     fn computeImageLayout(self: *Model, ctx: *const zz.Context) ImageLayout {
@@ -112,6 +180,23 @@ const Model = struct {
             .row = row,
             .col = @min(col, ctx.width -| 1),
         };
+    }
+
+    fn protocolName(self: *const Model) []const u8 {
+        return switch (self.protocol) {
+            .auto => "auto",
+            .kitty => "kitty",
+            .iterm2 => "iterm2",
+            .sixel => "sixel",
+        };
+    }
+
+    fn capsString(self: *const Model, allocator: std.mem.Allocator) []const u8 {
+        return std.fmt.allocPrint(allocator, "kitty={s} iterm2={s} sixel={s}", .{
+            if (self.caps.kitty_graphics) "yes" else "no",
+            if (self.caps.iterm2_inline_image) "yes" else "no",
+            if (self.caps.sixel) "yes" else "no",
+        }) catch "?";
     }
 
     /// Render the view
@@ -139,10 +224,20 @@ const Model = struct {
         const hint = hint_style.render(ctx.allocator, "Press 'q' to quit") catch "";
 
         const image_hint_text = if (self.image_supported)
-            "Press 'i' to draw assets/cat.png in remaining lower space"
+            "'i' draw  'c' cache  'z' z-index  'd' delete  'p' protocol"
         else
             "Inline image protocol not detected in this terminal";
         const image_hint = image_hint_style.render(ctx.allocator, image_hint_text) catch image_hint_text;
+
+        const caps_text = self.capsString(ctx.allocator);
+        const caps_line = image_hint_style.render(ctx.allocator, caps_text) catch caps_text;
+
+        const protocol_text = std.fmt.allocPrint(ctx.allocator, "protocol: {s}  z-index: {s}  cached: {s}", .{
+            self.protocolName(),
+            if (self.image_behind_text) "behind" else "normal",
+            if (self.image_cached) "yes" else "no",
+        }) catch "";
+        const protocol_line = image_hint_style.render(ctx.allocator, protocol_text) catch protocol_text;
 
         const status_text = if (self.image_attempted and self.image_supported)
             "Image command sent (check assets/cat.png path)"
@@ -153,16 +248,14 @@ const Model = struct {
         const status = hint_style.render(ctx.allocator, status_text) catch status_text;
 
         // Get max width for centering
-        const title_width = zz.measure.width(title);
-        const subtitle_width = zz.measure.width(subtitle);
-        const hint_width = zz.measure.width(hint);
-        const image_hint_width = zz.measure.width(image_hint);
-        const status_width = zz.measure.width(status);
         const max_width = @max(
-            title_width,
+            zz.measure.width(title),
             @max(
-                subtitle_width,
-                @max(hint_width, @max(image_hint_width, status_width)),
+                zz.measure.width(subtitle),
+                @max(zz.measure.width(hint), @max(
+                    zz.measure.width(image_hint),
+                    @max(zz.measure.width(caps_line), @max(zz.measure.width(protocol_line), zz.measure.width(status))),
+                )),
             ),
         );
 
@@ -171,12 +264,14 @@ const Model = struct {
         const centered_subtitle = zz.place.place(ctx.allocator, max_width, 1, .center, .top, subtitle) catch subtitle;
         const centered_hint = zz.place.place(ctx.allocator, max_width, 1, .center, .top, hint) catch hint;
         const centered_image_hint = zz.place.place(ctx.allocator, max_width, 1, .center, .top, image_hint) catch image_hint;
+        const centered_caps = zz.place.place(ctx.allocator, max_width, 1, .center, .top, caps_line) catch caps_line;
+        const centered_protocol = zz.place.place(ctx.allocator, max_width, 1, .center, .top, protocol_line) catch protocol_line;
         const centered_status = zz.place.place(ctx.allocator, max_width, 1, .center, .top, status) catch status;
 
         const content = std.fmt.allocPrint(
             ctx.allocator,
-            "{s}\n\n{s}\n\n{s}\n{s}\n{s}",
-            .{ centered_title, centered_subtitle, centered_hint, centered_image_hint, centered_status },
+            "{s}\n\n{s}\n\n{s}\n{s}\n{s}\n{s}\n{s}",
+            .{ centered_title, centered_subtitle, centered_hint, centered_image_hint, centered_caps, centered_protocol, centered_status },
         ) catch "Error rendering view";
 
         if (self.image_supported and self.image_visible) {

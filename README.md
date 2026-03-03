@@ -11,7 +11,8 @@ A delightful TUI framework for Zig, inspired by [Bubble Tea](https://github.com/
 - **16 Pre-built Components** - TextInput (with autocomplete/word movement), TextArea, List (fuzzy filtering), Table (interactive with row selection), Viewport, Progress (color gradients), Spinner, Tree, StyledList, Sparkline, Notification/Toast, Confirm dialog, Help, Paginator, Timer, FilePicker
 - **Keybinding Management** - Structured `KeyBinding`/`KeyMap` with matching, display formatting, and Help component integration
 - **Color System** - ANSI 16, 256, and TrueColor with adaptive colors, color profile detection, and dark background detection
-- **Command System** - Quit, tick, repeating tick (`every`), batch, sequence, suspend/resume, runtime terminal control (mouse, cursor, alt screen, title), print above program, Kitty/iTerm2/Sixel image file rendering
+- **Command System** - Quit, tick, repeating tick (`every`), batch, sequence, suspend/resume, runtime terminal control (mouse, cursor, alt screen, title), print above program, comprehensive image rendering
+- **Image Rendering** - Kitty/iTerm2/Sixel with in-memory data, file paths, image caching (transmit once, display many), z-index layering, unicode placeholders for text reflow, protocol override, and file validation
 - **Custom I/O** - Pipe-friendly with configurable input/output streams for testing and automation
 - **Kitty Keyboard Protocol** - Modern keyboard handling with key release events and unambiguous key identification
 - **Bracketed Paste** - Paste events delivered as a single message instead of individual keystrokes
@@ -132,7 +133,31 @@ return .{ .image_file = .{             // Draw image via Kitty/iTerm2/Sixel when
     .col_offset = 0,                   // Negative = left, positive = right
     // .row = 2, .col = 10,            // Optional absolute position override
     .move_cursor = false,              // Helpful for iTerm2 placement
+    .protocol = .auto,                 // .auto, .kitty, .iterm2, .sixel
+    .z_index = -1,                     // Kitty: render behind text
+    .unicode_placeholder = false,       // Kitty: participate in text reflow
 } };
+return .{ .image_data = .{            // Draw in-memory image data
+    .data = png_bytes,                 // Raw RGB, RGBA, or PNG bytes
+    .format = .png,                    // .rgb, .rgba, .png
+    .pixel_width = 100,                // Required for RGB/RGBA
+    .pixel_height = 100,
+    .width_cells = 20,
+    .height_cells = 10,
+    .placement = .center,
+} };
+return .{ .cache_image = .{           // Upload to Kitty cache (transmit once)
+    .source = .{ .file = "assets/logo.png" },
+    .image_id = 1,
+} };
+return .{ .place_cached_image = .{    // Display cached image (no re-upload)
+    .image_id = 1,
+    .placement = .center,
+    .width_cells = 20,
+    .height_cells = 10,
+} };
+return .{ .delete_image = .{ .by_id = 1 } };  // Free cached image
+return .{ .delete_image = .all };              // Free all cached images
 ```
 
 ### Styling
@@ -527,16 +552,135 @@ pub const Msg = union(enum) {
 
 ### Images (Kitty + iTerm2 + Sixel)
 
-Image commands are automatically no-ops on unsupported terminals.
+Image commands are automatically no-ops on unsupported terminals. All `draw*` functions return `bool` indicating success.
+
+#### Basic usage
 
 ```zig
+// Draw from file (auto-selects best protocol)
 if (ctx.supportsImages()) {
     _ = try ctx.drawImageFromFile("assets/cat.png", .{
         .width_cells = 40,
         .height_cells = 20,
     });
 }
+
+// Draw from file with specific protocol
+_ = try ctx.drawImageFromFileWithProtocol("assets/cat.png", .{
+    .width_cells = 40,
+    .z_index = -1,  // Behind text (Kitty only)
+}, .kitty);
 ```
+
+#### In-memory image data
+
+Render raw pixels or PNG bytes directly from memory, without writing to disk:
+
+```zig
+// Draw PNG bytes from memory
+_ = try ctx.drawImageData(png_bytes, .{
+    .format = .png,
+    .width_cells = 20,
+    .height_cells = 10,
+});
+
+// Draw raw RGBA pixels
+_ = try ctx.drawImageData(rgba_pixels, .{
+    .format = .rgba,
+    .pixel_width = 100,   // Required for RGB/RGBA
+    .pixel_height = 100,
+    .width_cells = 20,
+});
+```
+
+#### Image caching (Kitty)
+
+Transmit an image once, display it many times without re-uploading:
+
+```zig
+// Upload to cache (no display)
+_ = try ctx.transmitKittyImageFromFile("assets/logo.png", .{
+    .image_id = 1,
+});
+
+// Display cached image at different positions
+_ = try ctx.placeKittyImage(.{
+    .image_id = 1,
+    .width_cells = 10,
+    .height_cells = 5,
+});
+
+// Clean up when done
+_ = try ctx.deleteKittyImage(.{ .by_id = 1 });
+_ = try ctx.deleteKittyImage(.all);  // Delete everything
+```
+
+#### Z-index and unicode placeholders (Kitty)
+
+```zig
+// Render image behind text
+_ = try ctx.drawKittyImageFromFile("assets/bg.png", .{
+    .z_index = -1,            // Negative = behind text
+    .unicode_placeholder = true, // Image participates in text reflow/scrolling
+});
+```
+
+#### Protocol override
+
+Force a specific protocol instead of auto-selection (Kitty > iTerm2 > Sixel):
+
+```zig
+_ = try ctx.drawImageFromFileWithProtocol("image.png", .{}, .iterm2);
+_ = try ctx.drawImageDataWithProtocol(data, .{ .format = .png }, .sixel);
+```
+
+#### Querying capabilities
+
+```zig
+const caps = ctx.getImageCapabilities();
+// caps.kitty_graphics: bool
+// caps.iterm2_inline_image: bool
+// caps.sixel: bool
+
+if (ctx.supportsKittyGraphics()) { /* ... */ }
+if (ctx.supportsIterm2InlineImages()) { /* ... */ }
+if (ctx.supportsSixel()) { /* ... */ }
+```
+
+#### Command-based API
+
+All image operations are also available as commands from `update()`:
+
+```zig
+// File image with all options
+return .{ .image_file = .{
+    .path = "assets/cat.png",
+    .placement = .center,
+    .width_cells = 40,
+    .protocol = .auto,     // .auto, .kitty, .iterm2, .sixel
+    .z_index = -1,         // Behind text (Kitty)
+    .unicode_placeholder = true,  // Text reflow (Kitty)
+} };
+
+// In-memory data
+return .{ .image_data = .{
+    .data = png_bytes,
+    .format = .png,        // .rgb, .rgba, .png
+    .width_cells = 20,
+} };
+
+// Cache + place workflow
+return .{ .batch = &.{
+    .{ .cache_image = .{ .source = .{ .file = "logo.png" }, .image_id = 1 } },
+    .{ .place_cached_image = .{ .image_id = 1, .placement = .center } },
+} };
+
+// Delete cached images
+return .{ .delete_image = .{ .by_id = 1 } };
+return .{ .delete_image = .all };
+```
+
+#### Detection
 
 Detection combines runtime protocol probes with terminal feature/env hints:
 - Kitty graphics: Kitty query command (`a=q`) for confirmation.
@@ -548,17 +692,13 @@ Common terminals supported by default:
 - iTerm2 and WezTerm via `OSC 1337` inline images.
 - Sixel-capable terminals (for example xterm with Sixel, mlterm, contour).
 
-For iTerm2, `alt_screen = false` is optional. Keep `alt_screen = true` (default)
-if you want behavior consistent with other ZigZag examples.
+#### Notes
 
-Inside multiplexers (tmux/screen/zellij), inline image passthrough depends on
-multiplexer configuration and terminal support.
-
-For Sixel terminals, provide either:
-- a `.sixel`/`.six` file, or
-- a regular image with `img2sixel` available in `PATH`.
-
-For iTerm2, large images are sent with multipart OSC 1337 sequences automatically.
+- File paths are validated before sending; missing files return `false` instead of erroring.
+- For iTerm2, large images (>750KB encoded) are sent with multipart `OSC 1337` sequences automatically.
+- For Sixel, provide a `.sixel`/`.six` file or a regular image with `img2sixel` in `PATH`. Optional `-w`/`-h` pixel hints are passed through.
+- Inside multiplexers (tmux/screen/zellij), image passthrough depends on multiplexer configuration.
+- Image caching, z-index, and unicode placeholders are Kitty-specific features; they are silently ignored on other protocols.
 
 ## Layout
 
