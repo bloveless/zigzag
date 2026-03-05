@@ -128,8 +128,59 @@ pub const Modal = struct {
     pub const ButtonAlign = enum { left, center, right };
 
     pub const Backdrop = struct {
-        char: u8 = ' ',
+        /// Fill character (UTF-8 string, e.g. " ", "░", "▒", "▓", "█").
+        char: []const u8 = " ",
+        /// Style applied to the backdrop fill.
         style: style_mod.Style = makeStyle(.{ .bg_color = Color.gray(3) }),
+
+        /// Dark semi-transparent backdrop (default).
+        pub const dark = Backdrop{};
+
+        /// Slightly lighter backdrop.
+        pub const medium = Backdrop{
+            .style = makeStyle(.{ .bg_color = Color.gray(5) }),
+        };
+
+        /// Light backdrop.
+        pub const light = Backdrop{
+            .style = makeStyle(.{ .bg_color = Color.gray(8) }),
+        };
+
+        /// Clear backdrop — uses the terminal's default background color.
+        pub const clear = Backdrop{
+            .style = makeStyle(.{}),
+        };
+
+        /// Light shade fill character (░).
+        pub const shade_light = Backdrop{
+            .char = "░",
+            .style = makeStyle(.{ .fg_color = Color.gray(5) }),
+        };
+
+        /// Medium shade fill character (▒).
+        pub const shade_medium = Backdrop{
+            .char = "▒",
+            .style = makeStyle(.{ .fg_color = Color.gray(5) }),
+        };
+
+        /// Dense shade fill character (▓).
+        pub const shade_dense = Backdrop{
+            .char = "▓",
+            .style = makeStyle(.{ .fg_color = Color.gray(4) }),
+        };
+
+        /// Create a solid-color backdrop.
+        pub fn solid(bg_color: Color) Backdrop {
+            return .{ .style = makeStyle(.{ .bg_color = bg_color }) };
+        }
+
+        /// Create a backdrop with a custom fill character and foreground color.
+        pub fn custom(char_str: []const u8, fg_color: Color, bg_color: Color) Backdrop {
+            return .{
+                .char = char_str,
+                .style = makeStyle(.{ .fg_color = fg_color, .bg_color = bg_color }),
+            };
+        }
     };
 
     // ── Preset Constructors ────────────────────────────────────────────
@@ -646,8 +697,13 @@ pub const Modal = struct {
 
     fn renderBackdropSegment(allocator: std.mem.Allocator, bd: Backdrop, count: usize) ![]const u8 {
         if (count == 0) return try allocator.dupe(u8, "");
-        const segment = try nChars(allocator, bd.char, count);
-        return try bd.style.inline_style(true).render(allocator, segment);
+        const ch = bd.char;
+        if (ch.len == 0) return try allocator.dupe(u8, "");
+        const buf = try allocator.alloc(u8, ch.len * count);
+        for (0..count) |i| {
+            @memcpy(buf[i * ch.len ..][0..ch.len], ch);
+        }
+        return try bd.style.inline_style(true).render(allocator, buf);
     }
 
     fn repeatStr(allocator: std.mem.Allocator, s: style_mod.Style, str: []const u8, count: usize) ![]const u8 {

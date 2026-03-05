@@ -310,3 +310,33 @@ test "renderBox multi-line body" {
     try testing.expect(std.mem.indexOf(u8, box, "Line 1") != null);
     try testing.expect(std.mem.indexOf(u8, box, "Line 3") != null);
 }
+
+// ---------------------------------------------------------------------------
+// Backdrop presets
+// ---------------------------------------------------------------------------
+
+test "backdrop presets render without error" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    const alloc = arena.allocator();
+
+    const presets = [_]Modal.Backdrop{
+        Modal.Backdrop.dark,
+        Modal.Backdrop.medium,
+        Modal.Backdrop.light,
+        Modal.Backdrop.clear,
+        Modal.Backdrop.shade_light,
+        Modal.Backdrop.shade_medium,
+        Modal.Backdrop.shade_dense,
+        Modal.Backdrop.solid(zz.Color.blue()),
+        Modal.Backdrop.custom("*", zz.Color.red(), zz.Color.black()),
+    };
+
+    for (presets) |preset| {
+        var m = Modal.info("T", "B");
+        m.backdrop = preset;
+        m.show();
+        const output = try m.viewWithBackdrop(alloc, 40, 12);
+        try testing.expect(output.len > 0);
+    }
+}
