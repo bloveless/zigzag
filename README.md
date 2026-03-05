@@ -8,7 +8,7 @@ A delightful TUI framework for Zig, inspired by [Bubble Tea](https://github.com/
 
 - **Elm Architecture** - Model-Update-View pattern for predictable state management
 - **Rich Styling** - Comprehensive styling system with colors, borders, padding, margin backgrounds, per-side border colors, tab width control, style ranges, full style inheritance, text transforms, whitespace formatting controls, and unset methods
-- **16 Pre-built Components** - TextInput (with autocomplete/word movement), TextArea, List (fuzzy filtering), Table (interactive with row selection), Viewport, Progress (color gradients), Spinner, Tree, StyledList, Sparkline, Notification/Toast, Confirm dialog, Help, Paginator, Timer, FilePicker
+- **18 Pre-built Components** - TextInput (with autocomplete/word movement), TextArea, List (fuzzy filtering), Table (interactive with row selection), Viewport, Progress (color gradients), Spinner, Tree, StyledList, Sparkline, Notification/Toast, Confirm dialog, Modal/Popup, Tooltip, Help, Paginator, Timer, FilePicker
 - **Focus Management** - `FocusGroup` with Tab/Shift+Tab cycling, comptime focusable protocol, `FocusStyle` for visual focus ring indicators
 - **Keybinding Management** - Structured `KeyBinding`/`KeyMap` with matching, display formatting, and Help component integration
 - **Color System** - ANSI 16, 256, and TrueColor with adaptive colors, color profile detection, and dark background detection
@@ -418,6 +418,50 @@ if (confirm.result()) |yes| {
     if (yes) { /* confirmed */ }
 }
 ```
+
+### Modal
+
+Dialog overlay with buttons, backdrop, and focus support:
+
+```zig
+var modal = zz.Modal.info("Notice", "Operation completed successfully.");
+modal.show();
+
+// In update:
+modal.handleKey(key_event);
+if (modal.getResult()) |res| {
+    switch (res) {
+        .button_pressed => |idx| { /* button at idx was pressed */ },
+        .dismissed => { /* user pressed Escape */ },
+    }
+}
+
+// In view:
+if (modal.isVisible()) {
+    return modal.viewWithBackdrop(allocator, ctx.width, ctx.height);
+}
+```
+
+Presets: `Modal.info()`, `Modal.confirm()`, `Modal.warning()`, `Modal.err()`, or `Modal.init()` for full custom.
+
+### Tooltip
+
+Contextual hint positioned near a target element with cell-based overlay compositing:
+
+```zig
+var tip = zz.Tooltip.init("Save the current document");
+tip.target_x = 10;
+tip.target_y = 5;
+tip.placement = .bottom; // .top, .bottom, .left, .right
+tip.show();
+
+// In view — overlays onto existing content:
+if (tip.isVisible()) {
+    return tip.overlay(allocator, base_view, ctx.width, ctx.height);
+}
+```
+
+Presets: `Tooltip.init(text)`, `Tooltip.titled(title, text)`, `Tooltip.help(text)`, `Tooltip.shortcut(label, key)`. Supports `border_bg`, `arrow_bg`, `content_bg`, and `inherit_bg` for full background control.
 
 ### More Components
 
