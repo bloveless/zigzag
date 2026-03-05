@@ -594,6 +594,8 @@ pub const Tooltip = struct {
     }
 
     /// Truncate a string (potentially with ANSI) to at most `max_w` display columns.
+    /// Appends an ANSI reset if the truncated portion contained escape sequences,
+    /// so the left part's style doesn't bleed into spliced content.
     fn truncateToWidth(allocator: std.mem.Allocator, str: []const u8, max_w: usize) ![]const u8 {
         if (max_w == 0) return try allocator.dupe(u8, "");
         if (measure.width(str) <= max_w) return try allocator.dupe(u8, str);
@@ -603,6 +605,7 @@ pub const Tooltip = struct {
         var i: usize = 0;
         var in_escape = false;
         var escape_bracket = false;
+        var has_ansi = false;
 
         while (i < str.len and w < max_w) {
             const c = str[i];
@@ -610,6 +613,7 @@ pub const Tooltip = struct {
             if (c == 0x1b) {
                 in_escape = true;
                 escape_bracket = false;
+                has_ansi = true;
                 try buf.append(c);
                 i += 1;
                 continue;
@@ -651,15 +655,27 @@ pub const Tooltip = struct {
             }
         }
 
+        // Reset styles so truncated left part doesn't bleed into spliced content
+        if (has_ansi) {
+            try buf.appendSlice("\x1b[0m");
+        }
+
         return buf.toOwnedSlice();
     }
 
     /// Skip the first `skip_cols` display columns and return the rest of the string.
+    /// Preserves ANSI escape sequences encountered during skipping so that the
+    /// returned remainder retains its original styling context.
     fn skipColumns(allocator: std.mem.Allocator, str: []const u8, skip_cols: usize) ![]const u8 {
         var w: usize = 0;
         var i: usize = 0;
         var in_escape = false;
         var escape_bracket = false;
+
+        // Collect ANSI sequences encountered while skipping so we can
+        // replay them before the returned remainder.
+        var ansi_state = std.array_list.Managed(u8).init(allocator);
+        defer ansi_state.deinit();
 
         while (i < str.len and w < skip_cols) {
             const c = str[i];
@@ -667,11 +683,14 @@ pub const Tooltip = struct {
             if (c == 0x1b) {
                 in_escape = true;
                 escape_bracket = false;
+                // Start capturing this escape sequence
+                try ansi_state.append(c);
                 i += 1;
                 continue;
             }
 
             if (in_escape) {
+                try ansi_state.append(c);
                 if (c == '[') {
                     escape_bracket = true;
                 } else if (escape_bracket) {
@@ -702,6 +721,15 @@ pub const Tooltip = struct {
         }
 
         if (i >= str.len) return try allocator.dupe(u8, "");
+
+        // Prepend collected ANSI state to the remainder so styling is restored
+        if (ansi_state.items.len > 0) {
+            var result = std.array_list.Managed(u8).init(allocator);
+            try result.appendSlice(ansi_state.items);
+            try result.appendSlice(str[i..]);
+            return result.toOwnedSlice();
+        }
+
         return try allocator.dupe(u8, str[i..]);
     }
 
