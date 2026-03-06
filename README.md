@@ -304,11 +304,17 @@ list.handleKey(key_event);
 
 ### Viewport
 
-Scrollable content area:
+Scrollable content area with wrapping, horizontal scrolling, customizable scrollbar chars/styles, and built-in navigation keys (`j/k/h/l`, arrows, `PgUp/PgDn`, `g/G`, `d/u`):
 
 ```zig
 var viewport = zz.Viewport.init(allocator, 80, 24);
 try viewport.setContent(long_text);
+viewport.setWrap(true);
+viewport.setScrollbarChars("·", "█");
+viewport.setScrollbarStyle(
+    (zz.Style{}).fg(zz.Color.gray(8)).inline_style(true),
+    (zz.Style{}).fg(zz.Color.cyan()).inline_style(true),
+);
 viewport.handleKey(key_event);  // Supports j/k, Page Up/Down, etc.
 ```
 
@@ -401,7 +407,7 @@ const chart = try spark.view(allocator);
 
 Cartesian chart with multiple datasets, axes, grid lines, legends, selectable markers, and interpolation modes (`linear`, stepped, `catmull_rom`, `monotone_cubic`):
 
-Charts are passive views over your data. They do not animate on their own; they only change when your model updates the dataset. `zig build run-charts` and the `Charts` tab in `zig build run-showcase` now demonstrate both static snapshot charts and slower sampled/live updates.
+Charts are passive views over your data. They do not animate on their own; they only change when your model updates the dataset. `zig build run-charts` and the `Charts` tab in `zig build run-showcase` now demonstrate both static snapshot charts and slower sampled/live updates. The standalone `run-charts` demo also auto-sizes to the current terminal and uses a scrollable viewport when the content is larger than the screen.
 
 ```zig
 var chart = zz.Chart.init(allocator);

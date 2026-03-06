@@ -7,12 +7,14 @@ const Model = struct {
     chart: zz.Chart,
     bars: zz.BarChart,
     spark: zz.Sparkline,
+    viewport: zz.Viewport,
     phase: f64,
     sample_gate: u8,
 
     pub const Msg = union(enum) {
         key: zz.KeyEvent,
         tick: zz.msg.Tick,
+        window_size: zz.msg.WindowSize,
     };
 
     pub fn init(self: *Model, ctx: *zz.Context) zz.Cmd(Msg) {
@@ -81,8 +83,17 @@ const Model = struct {
             self.spark.push(30.0 + 10.0 * @sin(x / 5.0)) catch unreachable;
         }
 
+        self.viewport = zz.Viewport.init(ctx.persistent_allocator, ctx.width, ctx.height);
+        self.viewport.setWrap(false);
+        self.viewport.setScrollbarChars("·", "█");
+        self.viewport.setScrollbarStyle(
+            (zz.Style{}).fg(zz.Color.gray(8)).inline_style(true),
+            (zz.Style{}).fg(zz.Color.cyan()).inline_style(true),
+        );
+
         self.phase = 0;
         self.sample_gate = 0;
+        self.refreshViewport(ctx) catch {};
         return zz.Cmd(Msg).tickMs(80);
     }
 
@@ -90,14 +101,19 @@ const Model = struct {
         self.chart.deinit();
         self.bars.deinit();
         self.spark.deinit();
+        self.viewport.deinit();
     }
 
-    pub fn update(self: *Model, msg: Msg, _: *zz.Context) zz.Cmd(Msg) {
+    pub fn update(self: *Model, msg: Msg, ctx: *zz.Context) zz.Cmd(Msg) {
         switch (msg) {
             .key => |key| switch (key.key) {
                 .char => |c| if (c == 'q') return .quit,
                 .escape => return .quit,
-                else => {},
+                else => self.viewport.handleKey(key),
+            },
+            .window_size => {
+                self.refreshViewport(ctx) catch {};
+                return .none;
             },
             .tick => {
                 self.sample_gate +%= 1;
@@ -126,6 +142,8 @@ const Model = struct {
                     self.bars.bars.items[3].value = 8.0 + @cos(self.phase / 6.0) * 10.0;
                 }
 
+                self.refreshViewport(ctx) catch {};
+
                 return zz.Cmd(Msg).tickMs(80);
             },
         }
@@ -134,32 +152,42 @@ const Model = struct {
     }
 
     pub fn view(self: *const Model, ctx: *const zz.Context) []const u8 {
-        const line_chart = self.chart.view(ctx.allocator) catch "";
-        const snapshot = self.renderStaticSnapshot(ctx) catch "";
-        const bars = self.bars.view(ctx.allocator) catch "";
-        const vertical = self.renderVerticalBars(ctx) catch "";
-        const spark = self.spark.view(ctx.allocator) catch "";
-        const canvas = self.renderCanvas(ctx) catch "";
+        const viewport_view = self.viewport.view(ctx.allocator) catch "";
+        return viewport_view;
+    }
 
-        const top = zz.joinHorizontal(ctx.allocator, &.{
-            box(ctx, "Sampled Stream", line_chart) catch line_chart,
-            "  ",
-            box(ctx, "Static Snapshot", snapshot) catch snapshot,
-        }) catch line_chart;
-        const middle = zz.joinHorizontal(ctx.allocator, &.{
-            box(ctx, "Bars", bars) catch bars,
-            "  ",
-            box(ctx, "Vertical Bars", vertical) catch vertical,
-        }) catch bars;
-        const bottom = zz.joinHorizontal(ctx.allocator, &.{
-            box(ctx, "Sparkline", spark) catch spark,
-            "  ",
-            box(ctx, "Canvas", canvas) catch canvas,
-        }) catch spark;
+    fn refreshViewport(self: *Model, ctx: *zz.Context) !void {
+        self.viewport.setSize(ctx.width, ctx.height);
+        const content = try self.composeContent(ctx);
+        try self.viewport.setContent(content);
+    }
 
-        const note = "Live panels only update when a new sample arrives; snapshot panels stay fixed.";
-        const content = zz.joinVertical(ctx.allocator, &.{ top, "", middle, "", bottom, "", note, "", "Press q to quit" }) catch top;
-        return zz.place.place(ctx.allocator, ctx.width, ctx.height, .center, .middle, content) catch content;
+    fn composeContent(self: *const Model, ctx: *zz.Context) ![]const u8 {
+        const line_chart = try self.chart.view(ctx.allocator);
+        const snapshot = try self.renderStaticSnapshot(ctx);
+        const bars = try self.bars.view(ctx.allocator);
+        const vertical = try self.renderVerticalBars(ctx);
+        const spark = try self.spark.view(ctx.allocator);
+        const canvas = try self.renderCanvas(ctx);
+
+        const top = try zz.joinHorizontal(ctx.allocator, &.{
+            try box(ctx, "Sampled Stream", line_chart),
+            "  ",
+            try box(ctx, "Static Snapshot", snapshot),
+        });
+        const middle = try zz.joinHorizontal(ctx.allocator, &.{
+            try box(ctx, "Bars", bars),
+            "  ",
+            try box(ctx, "Vertical Bars", vertical),
+        });
+        const bottom = try zz.joinHorizontal(ctx.allocator, &.{
+            try box(ctx, "Sparkline", spark),
+            "  ",
+            try box(ctx, "Canvas", canvas),
+        });
+
+        const note = "Scroll: j/k/h/l, arrows, PgUp/PgDn, g/G. Live panels update only when a new sample arrives.";
+        return try zz.joinVertical(ctx.allocator, &.{ top, "", middle, "", bottom, "", note, "", "Press q to quit" });
     }
 
     fn renderCanvas(self: *const Model, ctx: *const zz.Context) ![]const u8 {
