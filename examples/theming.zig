@@ -38,7 +38,7 @@ const Model = struct {
         self.current_theme = .default_dark;
         self.active_theme = zz.Theme.fromPalette(zz.Palette.default_dark);
         self.progress_val = 35;
-        return .{ .tick = .{ .every = 100_000_000 } };
+        return .{ .every = 100_000_000 };
     }
 
     fn getPalette(choice: ThemeChoice) zz.Palette {
