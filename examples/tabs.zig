@@ -30,18 +30,27 @@ const ScreenB = struct {
 
     fn onKey(ctx: *anyopaque, key: zz.KeyEvent) bool {
         const self: *ScreenB = @ptrCast(@alignCast(ctx));
-        if (key.key == .char) {
-            switch (key.key.char) {
-                '+' => {
+        switch (key.key) {
+            .char => |c| switch (c) {
+                '+', '=' => {
                     self.count += 1;
                     return true;
                 },
-                '-' => {
+                '-', '_' => {
                     self.count -= 1;
                     return true;
                 },
                 else => {},
-            }
+            },
+            .up => {
+                self.count += 1;
+                return true;
+            },
+            .down => {
+                self.count -= 1;
+                return true;
+            },
+            else => {},
         }
         return false;
     }
@@ -117,7 +126,7 @@ const Model = struct {
         var hint_style = zz.Style{};
         hint_style = hint_style.fg(zz.Color.gray(12));
         hint_style = hint_style.inline_style(true);
-        const help = hint_style.render(ctx.allocator, "q: quit | ←/→: switch | 1..9: jump | +/-: counter actions") catch "";
+        const help = hint_style.render(ctx.allocator, "q: quit | ←/→: switch | 1..9: jump | +/- or ↑/↓: counter actions") catch "";
 
         return std.fmt.allocPrint(ctx.allocator, "{s}\n\n{s}", .{ body, help }) catch body;
     }

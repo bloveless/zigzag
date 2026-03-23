@@ -148,6 +148,41 @@ fn routeLeave(ctx: *anyopaque) void {
     state.leave_count += 1;
 }
 
+const CounterRouteState = struct {
+    count: i32 = 0,
+};
+
+fn counterRouteRender(_: *anyopaque, allocator: std.mem.Allocator) ![]const u8 {
+    return allocator.dupe(u8, "Counter");
+}
+
+fn counterRouteKey(ctx: *anyopaque, event: zz.KeyEvent) bool {
+    const state: *CounterRouteState = @ptrCast(@alignCast(ctx));
+    switch (event.key) {
+        .char => |c| switch (c) {
+            '+', '=' => {
+                state.count += 1;
+                return true;
+            },
+            '-', '_' => {
+                state.count -= 1;
+                return true;
+            },
+            else => {},
+        },
+        .up => {
+            state.count += 1;
+            return true;
+        },
+        .down => {
+            state.count -= 1;
+            return true;
+        },
+        else => {},
+    }
+    return false;
+}
+
 test "TabGroup route enter/leave hooks fire on active change" {
     var a = RouteState{ .text = "A" };
     var b = RouteState{ .text = "B" };
@@ -202,6 +237,33 @@ test "TabGroup handleKeyAndRoute forwards unhandled keys" {
     try testing.expect(res.consumed);
     try testing.expect(res.routed);
     try testing.expectEqual(@as(usize, 1), a.routed_count);
+}
+
+test "TabGroup routed counter accepts increment and decrement aliases" {
+    var state = CounterRouteState{};
+
+    var tabs = zz.TabGroup.init(testing.allocator);
+    defer tabs.deinit();
+
+    _ = try tabs.addTab(.{
+        .id = "counter",
+        .title = "Counter",
+        .route = .{
+            .ctx = &state,
+            .render_fn = counterRouteRender,
+            .key_fn = counterRouteKey,
+        },
+    });
+
+    try testing.expect(tabs.handleKeyAndRoute(.{ .key = .{ .char = '=' } }).routed);
+    try testing.expect(tabs.handleKeyAndRoute(.{ .key = .{ .char = '+' } }).routed);
+    try testing.expect(tabs.handleKeyAndRoute(.{ .key = .up }).routed);
+    try testing.expectEqual(@as(i32, 3), state.count);
+
+    try testing.expect(tabs.handleKeyAndRoute(.{ .key = .{ .char = '-' } }).routed);
+    try testing.expect(tabs.handleKeyAndRoute(.{ .key = .{ .char = '_' } }).routed);
+    try testing.expect(tabs.handleKeyAndRoute(.{ .key = .down }).routed);
+    try testing.expectEqual(@as(i32, 0), state.count);
 }
 
 test "TabGroup viewWithContent renders tab strip and active route content" {
