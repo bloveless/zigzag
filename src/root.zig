@@ -127,6 +127,10 @@ pub const components = struct {
     pub const focus = @import("components/focus.zig");
     pub const tab_group = @import("components/tab_group.zig");
     pub const TabGroup = tab_group.TabGroup;
+    pub const checkbox = @import("components/checkbox.zig");
+    pub const Checkbox = checkbox.Checkbox;
+    pub const CheckboxGroup = checkbox.CheckboxGroup;
+    pub const RadioGroup = @import("components/radio_group.zig").RadioGroup;
     pub const Dropdown = @import("components/dropdown.zig").Dropdown;
 };
 
@@ -149,6 +153,9 @@ pub const Confirm = components.Confirm;
 pub const Modal = components.Modal;
 pub const Tooltip = components.Tooltip;
 pub const TabGroup = components.TabGroup;
+pub const Checkbox = components.Checkbox;
+pub const CheckboxGroup = components.CheckboxGroup;
+pub const RadioGroup = components.RadioGroup;
 pub const Dropdown = components.Dropdown;
 
 // Focus management
