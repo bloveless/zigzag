@@ -131,6 +131,7 @@ pub const components = struct {
     pub const Checkbox = checkbox.Checkbox;
     pub const CheckboxGroup = checkbox.CheckboxGroup;
     pub const RadioGroup = @import("components/radio_group.zig").RadioGroup;
+    pub const Dropdown = @import("components/dropdown.zig").Dropdown;
 };
 
 // Re-export commonly used components at top level
@@ -155,6 +156,7 @@ pub const TabGroup = components.TabGroup;
 pub const Checkbox = components.Checkbox;
 pub const CheckboxGroup = components.CheckboxGroup;
 pub const RadioGroup = components.RadioGroup;
+pub const Dropdown = components.Dropdown;
 
 // Focus management
 pub const FocusGroup = components.focus.FocusGroup;
