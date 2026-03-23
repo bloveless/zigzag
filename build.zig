@@ -26,6 +26,7 @@ pub fn build(b: *std.Build) void {
         "tooltip",
         "tabs",
         "clipboard_osc52",
+        "menu_bar",
         "checkbox_radio",
         "dropdown",
     };
@@ -70,6 +71,7 @@ pub fn build(b: *std.Build) void {
         "tests/tab_group_tests.zig",
         "tests/chart_tests.zig",
         "tests/viewport_tests.zig",
+        "tests/menu_bar_tests.zig",
         "tests/checkbox_radio_tests.zig",
         "tests/dropdown_tests.zig",
     };
