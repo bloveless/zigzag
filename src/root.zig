@@ -127,6 +127,7 @@ pub const components = struct {
     pub const focus = @import("components/focus.zig");
     pub const tab_group = @import("components/tab_group.zig");
     pub const TabGroup = tab_group.TabGroup;
+    pub const MenuBar = @import("components/menu_bar.zig").MenuBar;
 };
 
 // Re-export commonly used components at top level
@@ -148,6 +149,7 @@ pub const Confirm = components.Confirm;
 pub const Modal = components.Modal;
 pub const Tooltip = components.Tooltip;
 pub const TabGroup = components.TabGroup;
+pub const MenuBar = components.MenuBar;
 
 // Focus management
 pub const FocusGroup = components.focus.FocusGroup;
