@@ -145,6 +145,7 @@ pub const components = struct {
     pub const CheckboxGroup = checkbox.CheckboxGroup;
     pub const RadioGroup = @import("components/radio_group.zig").RadioGroup;
     pub const Dropdown = @import("components/dropdown.zig").Dropdown;
+    pub const Form = @import("components/form.zig").Form;
     pub const Markdown = @import("components/markdown.zig").Markdown;
 };
 
@@ -174,6 +175,7 @@ pub const Checkbox = components.Checkbox;
 pub const CheckboxGroup = components.CheckboxGroup;
 pub const RadioGroup = components.RadioGroup;
 pub const Dropdown = components.Dropdown;
+pub const Form = components.Form;
 pub const Markdown = components.Markdown;
 
 // Focus management
