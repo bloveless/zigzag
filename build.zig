@@ -31,6 +31,7 @@ pub fn build(b: *std.Build) void {
         "menu_bar",
         "checkbox_radio",
         "dropdown",
+        "markdown",
         "animation",
     };
 
@@ -79,6 +80,7 @@ pub fn build(b: *std.Build) void {
         "tests/menu_bar_tests.zig",
         "tests/checkbox_radio_tests.zig",
         "tests/dropdown_tests.zig",
+        "tests/markdown_tests.zig",
         "tests/animation_tests.zig",
     };
 
