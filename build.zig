@@ -32,6 +32,7 @@ pub fn build(b: *std.Build) void {
         "checkbox_radio",
         "dropdown",
         "markdown",
+        "animation",
     };
 
     for (examples) |example_name| {
@@ -80,6 +81,7 @@ pub fn build(b: *std.Build) void {
         "tests/checkbox_radio_tests.zig",
         "tests/dropdown_tests.zig",
         "tests/markdown_tests.zig",
+        "tests/animation_tests.zig",
     };
 
     const test_step = b.step("test", "Run unit tests");
