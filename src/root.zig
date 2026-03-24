@@ -60,6 +60,11 @@ pub const Options = @import("core/context.zig").Options;
 pub const msg = @import("core/message.zig");
 pub const log = @import("core/log.zig");
 pub const Logger = log.Logger;
+pub const animation = @import("core/animation.zig");
+pub const Tween = animation.Tween;
+pub const Easing = animation.Easing;
+pub const tweenColor = animation.tweenColor;
+pub const lerp = animation.lerp;
 
 // Terminal
 pub const terminal = @import("terminal/terminal.zig");
@@ -144,6 +149,9 @@ pub const components = struct {
     pub const Toast = toast.Toast;
     pub const ToastPosition = toast.Position;
     pub const ToastLevel = toast.Level;
+    pub const ContextMenu = @import("components/context_menu.zig").ContextMenu;
+    pub const Form = @import("components/form.zig").Form;
+    pub const Markdown = @import("components/markdown.zig").Markdown;
 };
 
 // Re-export commonly used components at top level
@@ -175,6 +183,9 @@ pub const Dropdown = components.Dropdown;
 pub const Toast = components.Toast;
 pub const ToastPosition = components.ToastPosition;
 pub const ToastLevel = components.ToastLevel;
+pub const ContextMenu = components.ContextMenu;
+pub const Form = components.Form;
+pub const Markdown = components.Markdown;
 
 // Focus management
 pub const FocusGroup = components.focus.FocusGroup;
