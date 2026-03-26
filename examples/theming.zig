@@ -1,32 +1,12 @@
 //! ZigZag Theming Example
-//! Demonstrates switching between theme palettes at runtime.
+//! Demonstrates the ThemeManager for cycling through built-in palettes,
+//! adaptive palettes, and using theme colors in components.
 
 const std = @import("std");
 const zz = @import("zigzag");
 
-const ThemeChoice = enum {
-    default_dark,
-    default_light,
-    catppuccin_mocha,
-    catppuccin_latte,
-    dracula,
-    nord,
-    high_contrast,
-};
-
-const theme_names = [_][]const u8{
-    "Default Dark",
-    "Default Light",
-    "Catppuccin Mocha",
-    "Catppuccin Latte",
-    "Dracula",
-    "Nord",
-    "High Contrast",
-};
-
 const Model = struct {
-    current_theme: ThemeChoice,
-    active_theme: zz.Theme,
+    tm: zz.ThemeManager,
     progress_val: f64,
 
     pub const Msg = union(enum) {
@@ -34,51 +14,38 @@ const Model = struct {
         tick: zz.msg.Tick,
     };
 
-    pub fn init(self: *Model, _: *zz.Context) zz.Cmd(Msg) {
-        self.current_theme = .default_dark;
-        self.active_theme = zz.Theme.fromPalette(zz.Palette.default_dark);
+    pub fn init(self: *Model, ctx: *zz.Context) zz.Cmd(Msg) {
+        self.tm = zz.ThemeManager.init();
         self.progress_val = 35;
+        // Also set the theme on the context so components can read it
+        ctx.setTheme(self.tm.current.palette);
         return .{ .every = 100_000_000 };
     }
 
-    fn getPalette(choice: ThemeChoice) zz.Palette {
-        return switch (choice) {
-            .default_dark => zz.Palette.default_dark,
-            .default_light => zz.Palette.default_light,
-            .catppuccin_mocha => zz.Palette.catppuccin_mocha,
-            .catppuccin_latte => zz.Palette.catppuccin_latte,
-            .dracula => zz.Palette.dracula,
-            .nord => zz.Palette.nord,
-            .high_contrast => zz.Palette.high_contrast,
-        };
-    }
-
-    fn nextTheme(self: *Model) void {
-        const idx = @intFromEnum(self.current_theme);
-        const next = if (idx + 1 < theme_names.len) idx + 1 else 0;
-        self.current_theme = @enumFromInt(next);
-        self.active_theme = zz.Theme.fromPalette(getPalette(self.current_theme));
-    }
-
-    fn prevTheme(self: *Model) void {
-        const idx = @intFromEnum(self.current_theme);
-        const prev = if (idx > 0) idx - 1 else theme_names.len - 1;
-        self.current_theme = @enumFromInt(prev);
-        self.active_theme = zz.Theme.fromPalette(getPalette(self.current_theme));
-    }
-
-    pub fn update(self: *Model, msg: Msg, _: *zz.Context) zz.Cmd(Msg) {
+    pub fn update(self: *Model, msg: Msg, ctx: *zz.Context) zz.Cmd(Msg) {
         switch (msg) {
             .key => |k| {
                 switch (k.key) {
                     .char => |c| switch (c) {
                         'q' => return .quit,
-                        'n' => self.nextTheme(),
-                        'p' => self.prevTheme(),
+                        'n' => {
+                            self.tm.nextBuiltin();
+                            ctx.setTheme(self.tm.current.palette);
+                        },
+                        'p' => {
+                            self.tm.prevBuiltin();
+                            ctx.setTheme(self.tm.current.palette);
+                        },
                         else => {},
                     },
-                    .right => self.nextTheme(),
-                    .left => self.prevTheme(),
+                    .right => {
+                        self.tm.nextBuiltin();
+                        ctx.setTheme(self.tm.current.palette);
+                    },
+                    .left => {
+                        self.tm.prevBuiltin();
+                        ctx.setTheme(self.tm.current.palette);
+                    },
                     .escape => return .quit,
                     else => {},
                 }
@@ -92,19 +59,23 @@ const Model = struct {
     }
 
     pub fn view(self: *const Model, ctx: *const zz.Context) []const u8 {
-        const t = &self.active_theme;
+        const t = &self.tm.current;
         const p = &t.palette;
 
         // Title
         const title_style = zz.Theme.boldStyleWith(p.primary);
-        const title = title_style.render(ctx.allocator, "Theme Preview") catch "Theme Preview";
+        const title = title_style.render(ctx.allocator, "Theme Preview (ThemeManager)") catch "Theme Preview";
 
-        // Theme name
+        // Theme name and count
         const name_style = zz.Theme.boldStyleWith(p.accent);
-        const theme_name = name_style.render(ctx.allocator, theme_names[@intFromEnum(self.current_theme)]) catch "?";
-        const theme_line = std.fmt.allocPrint(ctx.allocator, "Current: {s}", .{theme_name}) catch "?";
+        const theme_name = name_style.render(ctx.allocator, self.tm.currentName()) catch "?";
+        const theme_line = std.fmt.allocPrint(
+            ctx.allocator,
+            "Current: {s}  ({d}/{d})",
+            .{ theme_name, self.tm.palette_index + 1, zz.ThemeManager.builtinCount() },
+        ) catch "?";
 
-        // Color swatches
+        // Color swatches in two rows
         const primary_s = zz.Theme.boldStyleWith(p.primary).render(ctx.allocator, "██ Primary") catch "";
         const secondary_s = zz.Theme.boldStyleWith(p.secondary).render(ctx.allocator, "██ Secondary") catch "";
         const accent_s = zz.Theme.boldStyleWith(p.accent).render(ctx.allocator, "██ Accent") catch "";
@@ -127,6 +98,30 @@ const Model = struct {
         const box_content = std.fmt.allocPrint(ctx.allocator, "{s}\n{s}\n{s}", .{ fg_s, muted_s, subtle_s }) catch "?";
         const bordered = box_style.render(ctx.allocator, box_content) catch box_content;
 
+        // Surface/overlay preview
+        var surface_style = zz.Style{};
+        surface_style = surface_style.borderAll(zz.Border.normal);
+        surface_style = surface_style.borderForeground(p.border_color);
+        surface_style = surface_style.bg(p.surface);
+        surface_style = surface_style.fg(p.foreground);
+        surface_style = surface_style.paddingLeft(1).paddingRight(1);
+        const surface_box = surface_style.render(ctx.allocator, "Surface") catch "Surface";
+
+        var overlay_style = zz.Style{};
+        overlay_style = overlay_style.borderAll(zz.Border.normal);
+        overlay_style = overlay_style.borderForeground(p.border_color);
+        overlay_style = overlay_style.bg(p.overlay);
+        overlay_style = overlay_style.fg(p.foreground);
+        overlay_style = overlay_style.paddingLeft(1).paddingRight(1);
+        const overlay_box = overlay_style.render(ctx.allocator, "Overlay") catch "Overlay";
+
+        // Highlight preview
+        var hl_style = zz.Style{};
+        hl_style = hl_style.bg(p.highlight);
+        hl_style = hl_style.fg(p.highlight_text);
+        hl_style = hl_style.inline_style(true);
+        const hl_box = hl_style.render(ctx.allocator, " Highlighted ") catch "Highlighted";
+
         // Progress bar using theme colors
         var prog = zz.Progress.init();
         prog.setValue(self.progress_val);
@@ -143,12 +138,16 @@ const Model = struct {
 
         // Help
         const help_style = zz.Theme.styleWith(p.muted);
-        const help = help_style.render(ctx.allocator, "Left/Right or n/p: switch theme | q: quit") catch "";
+        const help = help_style.render(ctx.allocator,
+            \\Left/Right or n/p: switch theme | q: quit
+            \\All built-in palettes: Default Dark/Light, Catppuccin,
+            \\Dracula, Nord, Tokyo Night, Gruvbox, Solarized, High Contrast
+        ) catch "";
 
         return std.fmt.allocPrint(
             ctx.allocator,
-            "{s}\n{s}\n\n{s}  {s}  {s}\n{s}  {s}  {s}  {s}\n\n{s}\n\nProgress: {s}\n\n{s}",
-            .{ title, theme_line, primary_s, secondary_s, accent_s, success_s, warning_s, danger_s, info_s, bordered, prog_view, help },
+            "{s}\n{s}\n\n{s}  {s}  {s}\n{s}  {s}  {s}  {s}\n\n{s}\n\n{s}  {s}  {s}\n\nProgress: {s}\n\n{s}",
+            .{ title, theme_line, primary_s, secondary_s, accent_s, success_s, warning_s, danger_s, info_s, bordered, surface_box, overlay_box, hl_box, prog_view, help },
         ) catch "Error";
     }
 };

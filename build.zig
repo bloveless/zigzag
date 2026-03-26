@@ -37,6 +37,8 @@ pub fn build(b: *std.Build) void {
         "markdown",
         "animation",
         "mouse",
+        "accessibility",
+        "wasm_app",
     };
 
     for (examples) |example_name| {

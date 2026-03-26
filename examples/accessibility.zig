@@ -1,0 +1,171 @@
+//! ZigZag Accessibility Example
+//! Demonstrates WCAG contrast checking, accessible labels,
+//! and the suggestForeground helper for picking readable colors.
+
+const std = @import("std");
+const zz = @import("zigzag");
+
+const ColorPair = struct {
+    name: []const u8,
+    fg: zz.Color,
+    bg: zz.Color,
+};
+
+const Model = struct {
+    pairs: [8]ColorPair,
+    selected: usize,
+
+    pub const Msg = union(enum) {
+        key: zz.KeyEvent,
+    };
+
+    pub fn init(self: *Model, _: *zz.Context) zz.Cmd(Msg) {
+        self.pairs = .{
+            .{ .name = "White on Black", .fg = zz.Color.white(), .bg = zz.Color.black() },
+            .{ .name = "Black on White", .fg = zz.Color.black(), .bg = zz.Color.white() },
+            .{ .name = "Cyan on Dark", .fg = zz.Color.cyan(), .bg = zz.Color.fromRgb(30, 30, 46) },
+            .{ .name = "Gray on Gray", .fg = zz.Color.fromRgb(120, 120, 120), .bg = zz.Color.fromRgb(140, 140, 140) },
+            .{ .name = "Yellow on White", .fg = zz.Color.yellow(), .bg = zz.Color.white() },
+            .{ .name = "Green on Black", .fg = zz.Color.green(), .bg = zz.Color.black() },
+            .{ .name = "Red on Dark Red", .fg = zz.Color.red(), .bg = zz.Color.fromRgb(60, 10, 10) },
+            .{ .name = "Blue on Blue", .fg = zz.Color.fromRgb(100, 100, 200), .bg = zz.Color.fromRgb(80, 80, 180) },
+        };
+        self.selected = 0;
+        return .none;
+    }
+
+    pub fn update(self: *Model, msg: Msg, _: *zz.Context) zz.Cmd(Msg) {
+        switch (msg) {
+            .key => |k| switch (k.key) {
+                .char => |c| if (c == 'q') return .quit,
+                .up => self.selected = if (self.selected == 0) self.pairs.len - 1 else self.selected - 1,
+                .down => self.selected = (self.selected + 1) % self.pairs.len,
+                .escape => return .quit,
+                else => {},
+            },
+        }
+        return .none;
+    }
+
+    pub fn view(self: *const Model, ctx: *const zz.Context) []const u8 {
+        var result = std.array_list.Managed(u8).init(ctx.allocator);
+        const w = result.writer();
+
+        // Title
+        var title_s = zz.Style{};
+        title_s = title_s.bold(true);
+        title_s = title_s.fg(zz.Color.white());
+        title_s = title_s.inline_style(true);
+        const title = title_s.render(ctx.allocator, "Accessibility: WCAG Contrast Checker") catch "A11y Demo";
+        w.print("{s}\n\n", .{title}) catch {};
+
+        // Table header
+        w.writeAll("  Name                   Ratio    Level     Sample\n") catch {};
+        w.writeAll("  ────────────────────── ──────── ───────── ──────────────\n") catch {};
+
+        // Color pairs
+        for (&self.pairs, 0..) |*pair, i| {
+            const ratio = pair.fg.contrastRatio(pair.bg);
+            const level = zz.a11y.checkContrast(pair.fg, pair.bg);
+
+            const level_name: []const u8 = switch (level) {
+                .aaa => "AAA",
+                .aa => "AA",
+                .aa_large => "AA Large",
+                .fail => "FAIL",
+            };
+
+            // Level badge color
+            const level_color: zz.Color = switch (level) {
+                .aaa => zz.Color.green(),
+                .aa => zz.Color.cyan(),
+                .aa_large => zz.Color.yellow(),
+                .fail => zz.Color.red(),
+            };
+
+            // Row indicator
+            const prefix: []const u8 = if (i == self.selected) "> " else "  ";
+            w.writeAll(prefix) catch {};
+
+            // Name (padded to 23 chars)
+            w.print("{s}", .{pair.name}) catch {};
+            const name_len = pair.name.len;
+            if (name_len < 23) {
+                for (0..23 - name_len) |_| w.writeByte(' ') catch {};
+            }
+
+            // Ratio
+            w.print("{d:.1}:1   ", .{ratio}) catch {};
+
+            // Level badge
+            var badge_s = zz.Style{};
+            badge_s = badge_s.fg(level_color);
+            badge_s = badge_s.bold(true);
+            badge_s = badge_s.inline_style(true);
+            const badge = badge_s.render(ctx.allocator, level_name) catch level_name;
+            w.print("{s}", .{badge}) catch {};
+            const badge_len = level_name.len;
+            if (badge_len < 10) {
+                for (0..10 - badge_len) |_| w.writeByte(' ') catch {};
+            }
+
+            // Sample text with the actual colors
+            var sample_s = zz.Style{};
+            sample_s = sample_s.fg(pair.fg);
+            sample_s = sample_s.bg(pair.bg);
+            sample_s = sample_s.inline_style(true);
+            const sample = sample_s.render(ctx.allocator, " Sample Text ") catch "Sample";
+            w.print("{s}", .{sample}) catch {};
+
+            w.writeByte('\n') catch {};
+        }
+
+        // Selected pair detail
+        const pair = &self.pairs[self.selected];
+        w.writeAll("\n") catch {};
+
+        // Accessible label demo
+        const a11y_label = zz.AccessibleLabel{
+            .role = .status,
+            .name = pair.name,
+            .value = std.fmt.allocPrint(ctx.allocator, "contrast {d:.1}:1", .{pair.fg.contrastRatio(pair.bg)}) catch "",
+            .state = switch (zz.a11y.checkContrast(pair.fg, pair.bg)) {
+                .aaa => "passes AAA",
+                .aa => "passes AA",
+                .aa_large => "passes AA for large text only",
+                .fail => "fails WCAG requirements",
+            },
+        };
+        const label_text = a11y_label.format(ctx.allocator) catch "?";
+        var label_s = zz.Style{};
+        label_s = label_s.fg(zz.Color.gray(14));
+        label_s = label_s.inline_style(true);
+        const label_rendered = label_s.render(ctx.allocator, label_text) catch label_text;
+        w.print("Screen reader: {s}\n", .{label_rendered}) catch {};
+
+        // Suggested foreground
+        const suggested = zz.a11y.suggestForeground(pair.bg);
+        const sugg_name: []const u8 = if (std.meta.eql(suggested, zz.Color.white())) "white" else "black";
+        w.print("Suggested foreground for this bg: {s}\n", .{sugg_name}) catch {};
+
+        // Help
+        w.writeAll("\n") catch {};
+        var help_s = zz.Style{};
+        help_s = help_s.fg(zz.Color.gray(12));
+        help_s = help_s.inline_style(true);
+        const help = help_s.render(ctx.allocator, "Up/Down: select pair | q: quit") catch "";
+        w.writeAll(help) catch {};
+
+        return result.toOwnedSlice() catch "Error";
+    }
+};
+
+pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+
+    var program = try zz.Program(Model).init(gpa.allocator());
+    defer program.deinit();
+
+    try program.run();
+}
