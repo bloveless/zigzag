@@ -36,6 +36,7 @@ pub fn build(b: *std.Build) void {
         "form",
         "markdown",
         "animation",
+        "mouse",
     };
 
     for (examples) |example_name| {
@@ -88,6 +89,7 @@ pub fn build(b: *std.Build) void {
         "tests/form_tests.zig",
         "tests/markdown_tests.zig",
         "tests/animation_tests.zig",
+        "tests/mouse_tests.zig",
     };
 
     const test_step = b.step("test", "Run unit tests");
