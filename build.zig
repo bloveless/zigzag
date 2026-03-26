@@ -89,6 +89,7 @@ pub fn build(b: *std.Build) void {
         "tests/form_tests.zig",
         "tests/markdown_tests.zig",
         "tests/animation_tests.zig",
+        "tests/accessibility_tests.zig",
         "tests/mouse_tests.zig",
     };
 
