@@ -8,7 +8,10 @@ pub const screen = @import("screen.zig");
 const unicode = @import("../unicode.zig");
 
 // Platform-specific implementation
-const platform = if (builtin.os.tag == .windows)
+const is_wasm = builtin.os.tag == .wasi or builtin.cpu.arch == .wasm32 or builtin.cpu.arch == .wasm64;
+const platform = if (is_wasm)
+    @import("platform/wasm.zig")
+else if (builtin.os.tag == .windows)
     @import("platform/windows.zig")
 else
     @import("platform/posix.zig");
@@ -268,24 +271,32 @@ pub const Terminal = struct {
     image_caps: ImageCapabilities = .{},
 
     pub fn init(config: Config) !Terminal {
-        const stdout = config.output orelse std.fs.File.stdout();
-        const stdin = config.input orelse std.fs.File.stdin();
-
         var state = platform.State.init();
-        // Apply custom fd overrides
-        if (builtin.os.tag != .windows) {
-            if (config.input) |inp| state.stdin_fd = inp.handle;
-            if (config.output) |out| state.stdout_fd = out.handle;
-        } else {
-            if (config.input) |inp| state.stdin_handle = inp.handle;
-            if (config.output) |out| state.stdout_handle = out.handle;
-        }
 
-        var term = Terminal{
+        var term: Terminal = if (is_wasm) .{
             .state = state,
             .config = config,
-            .stdout = stdout,
-            .stdin = stdin,
+            .stdout = undefined,
+            .stdin = undefined,
+        } else blk: {
+            const stdout = config.output orelse std.fs.File.stdout();
+            const stdin = config.input orelse std.fs.File.stdin();
+
+            // Apply custom fd overrides
+            if (builtin.os.tag != .windows) {
+                if (config.input) |inp| state.stdin_fd = inp.handle;
+                if (config.output) |out| state.stdout_fd = out.handle;
+            } else {
+                if (config.input) |inp| state.stdin_handle = inp.handle;
+                if (config.output) |out| state.stdout_handle = out.handle;
+            }
+
+            break :blk .{
+                .state = state,
+                .config = config,
+                .stdout = stdout,
+                .stdin = stdin,
+            };
         };
 
         try term.setup();
@@ -395,10 +406,13 @@ pub const Terminal = struct {
 
     /// Get terminal size
     pub fn getSize(self: *Terminal) !Size {
-        return platform.getSize(if (builtin.os.tag == .windows)
-            self.state.stdout_handle
-        else
-            self.state.stdout_fd);
+        if (is_wasm) {
+            return platform.getSize({});
+        } else if (builtin.os.tag == .windows) {
+            return platform.getSize(self.state.stdout_handle);
+        } else {
+            return platform.getSize(self.state.stdout_fd);
+        }
     }
 
     /// Read input with timeout (in milliseconds)
@@ -429,12 +443,16 @@ pub const Terminal = struct {
     /// Flush output buffer
     pub fn flush(self: *Terminal) !void {
         if (self.write_pos > 0) {
-            self.stdout.writeAll(self.write_buffer[0..self.write_pos]) catch |err| {
-                return switch (err) {
-                    error.WouldBlock => error.WouldBlock,
-                    else => error.BrokenPipe,
+            if (is_wasm) {
+                platform.WasmWriter.write(&platform.wasm_writer_instance, self.write_buffer[0..self.write_pos]) catch {};
+            } else {
+                self.stdout.writeAll(self.write_buffer[0..self.write_pos]) catch |err| {
+                    return switch (err) {
+                        error.WouldBlock => error.WouldBlock,
+                        else => error.BrokenPipe,
+                    };
                 };
-            };
+            }
             self.write_pos = 0;
         }
     }
@@ -572,6 +590,7 @@ pub const Terminal = struct {
     /// Check if stdin is a TTY
     pub fn isTty(self: *Terminal) bool {
         _ = self;
+        if (is_wasm) return true;
         return platform.isTty(if (builtin.os.tag == .windows)
             platform.State.init().stdin_handle
         else
@@ -999,6 +1018,11 @@ pub const Terminal = struct {
     }
 
     fn detectUnicodeWidthCapabilities(self: *Terminal) void {
+        if (is_wasm) {
+            self.unicode_width_caps = .{ .strategy = .legacy_wcwidth };
+            return;
+        }
+
         self.unicode_width_caps = .{
             .kitty_text_sizing = self.queryKittyTextSizingSupport() catch false,
         };
@@ -1018,6 +1042,11 @@ pub const Terminal = struct {
     }
 
     fn detectImageCapabilities(self: *Terminal) void {
+        if (is_wasm) {
+            self.image_caps = .{};
+            return;
+        }
+
         if (!self.isTty()) {
             self.image_caps = .{};
             return;

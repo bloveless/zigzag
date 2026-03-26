@@ -118,4 +118,24 @@ pub fn build(b: *std.Build) void {
     });
     const run_lib_tests = b.addRunArtifact(lib_tests);
     test_step.dependOn(&run_lib_tests.step);
+
+    // WASM library build (for browser-based terminals)
+    const wasm_step = b.step("wasm", "Build ZigZag as a WASM library");
+
+    const wasm_target = b.resolveTargetQuery(.{
+        .cpu_arch = .wasm32,
+        .os_tag = .freestanding,
+    });
+
+    const wasm_lib = b.addLibrary(.{
+        .name = "zigzag",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/root.zig"),
+            .target = wasm_target,
+            .optimize = .ReleaseSmall,
+        }),
+        .linkage = .static,
+    });
+    b.installArtifact(wasm_lib);
+    wasm_step.dependOn(&wasm_lib.step);
 }
