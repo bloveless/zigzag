@@ -101,6 +101,12 @@ pub const measure = @import("layout/measure.zig");
 pub const join = @import("layout/join.zig");
 pub const place = @import("layout/place.zig");
 
+// Accessibility
+pub const accessibility = @import("accessibility.zig");
+pub const a11y = accessibility;
+pub const ContrastLevel = accessibility.ContrastLevel;
+pub const AccessibleLabel = accessibility.AccessibleLabel;
+
 // Unicode
 pub const unicode = @import("unicode.zig");
 
