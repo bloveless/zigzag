@@ -82,6 +82,12 @@ pub const Key = input.keys.Key;
 pub const KeyEvent = input.keys.KeyEvent;
 pub const Modifiers = input.keys.Modifiers;
 pub const MouseEvent = input.mouse.MouseEvent;
+pub const MouseButton = input.mouse.Button;
+pub const MouseEventType = input.mouse.EventType;
+pub const hitbox = @import("input/hitbox.zig");
+pub const HitBox = hitbox.HitBox;
+pub const MouseState = hitbox.MouseState;
+pub const MouseInteraction = hitbox.Interaction;
 
 // Style
 pub const style = @import("style/style.zig");
