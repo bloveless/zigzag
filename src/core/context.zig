@@ -8,6 +8,7 @@ const ImageCapabilities = terminal_mod.ImageCapabilities;
 const color_mod = @import("../style/color.zig");
 const unicode_mod = @import("../unicode.zig");
 const Logger = @import("log.zig").Logger;
+const theme_mod = @import("../style/theme.zig");
 
 /// Runtime context passed to init, update, and view functions
 pub const Context = struct {
@@ -53,6 +54,9 @@ pub const Context = struct {
     /// Whether kitty text sizing support was detected
     kitty_text_sizing: bool,
 
+    /// Active theme for the application
+    theme: theme_mod.Theme = theme_mod.Theme.fromPalette(theme_mod.Palette.default_dark),
+
     /// Access to internal state (for advanced use)
     _terminal: ?*Terminal,
 
@@ -85,6 +89,16 @@ pub const Context = struct {
             .kitty_text_sizing = false,
             ._terminal = null,
         };
+    }
+
+    /// Set the active theme from a palette.
+    pub fn setTheme(self: *Context, p: theme_mod.Palette) void {
+        self.theme = theme_mod.Theme.fromPalette(p);
+    }
+
+    /// Get the current palette.
+    pub fn getPalette(self: *const Context) theme_mod.Palette {
+        return self.theme.palette;
     }
 
     /// Get the aspect ratio (width / height)

@@ -94,6 +94,7 @@ pub const theme = @import("style/theme.zig");
 pub const Theme = theme.Theme;
 pub const Palette = theme.Palette;
 pub const AdaptivePalette = theme.AdaptivePalette;
+pub const ThemeManager = theme.ThemeManager;
 
 // Layout
 pub const layout = @import("layout/layout.zig");

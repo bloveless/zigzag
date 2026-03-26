@@ -19,6 +19,10 @@ test "Palette all presets are valid" {
         zz.Palette.dracula,
         zz.Palette.nord,
         zz.Palette.high_contrast,
+        zz.Palette.tokyo_night,
+        zz.Palette.gruvbox_dark,
+        zz.Palette.solarized_dark,
+        zz.Palette.solarized_light,
     };
 
     for (palettes) |p| {
@@ -76,6 +80,79 @@ test "Theme boldStyleWith creates bold inline style" {
 
     const rendered = try s.render(arena.allocator(), "bold");
     try testing.expect(rendered.len > 0);
+}
+
+test "ThemeManager init and cycle" {
+    var tm = zz.ThemeManager.init();
+
+    // Should start at index 0
+    try testing.expectEqualStrings("Default Dark", tm.currentName());
+
+    tm.nextBuiltin();
+    try testing.expectEqualStrings("Default Light", tm.currentName());
+
+    tm.prevBuiltin();
+    try testing.expectEqualStrings("Default Dark", tm.currentName());
+
+    // Wrap around backwards
+    tm.prevBuiltin();
+    try testing.expectEqualStrings("High Contrast", tm.currentName());
+}
+
+test "ThemeManager setBuiltinByIndex" {
+    var tm = zz.ThemeManager.init();
+
+    tm.setBuiltinByIndex(4); // Dracula
+    try testing.expectEqualStrings("Dracula", tm.currentName());
+    try testing.expectEqual(zz.Palette.dracula.primary, tm.current.palette.primary);
+}
+
+test "ThemeManager setPalette with custom palette" {
+    var tm = zz.ThemeManager.init();
+
+    const custom = zz.Palette{
+        .primary = zz.Color.red(),
+        .secondary = zz.Color.blue(),
+        .accent = zz.Color.green(),
+        .background = zz.Color.black(),
+        .surface = zz.Color.black(),
+        .overlay = zz.Color.black(),
+        .foreground = zz.Color.white(),
+        .muted = zz.Color.gray(14),
+        .subtle = zz.Color.gray(10),
+        .success = zz.Color.green(),
+        .warning = zz.Color.yellow(),
+        .danger = zz.Color.red(),
+        .info = zz.Color.cyan(),
+        .border_color = zz.Color.gray(12),
+        .border_focus = zz.Color.red(),
+        .highlight = zz.Color.gray(5),
+        .highlight_text = zz.Color.white(),
+    };
+
+    tm.setPalette(custom);
+    try testing.expectEqual(zz.Color.red(), tm.current.palette.primary);
+}
+
+test "ThemeManager builtinCount" {
+    try testing.expectEqual(@as(usize, 11), zz.ThemeManager.builtinCount());
+}
+
+test "Palette builtins list matches presets" {
+    const builtins = zz.Palette.builtins;
+    try testing.expect(builtins.len >= 11);
+
+    // Spot check a few
+    try testing.expectEqual(zz.Palette.dracula.primary, builtins[4].palette.primary);
+    try testing.expectEqualStrings("Tokyo Night", builtins[6].name);
+}
+
+test "AdaptivePalette solarized resolves" {
+    const dark = zz.AdaptivePalette.solarized.resolve(true);
+    try testing.expectEqual(zz.Palette.solarized_dark.primary, dark.primary);
+
+    const light = zz.AdaptivePalette.solarized.resolve(false);
+    try testing.expectEqual(zz.Palette.solarized_light.primary, light.primary);
 }
 
 test "Theme can be overridden per-component" {

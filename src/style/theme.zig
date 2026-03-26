@@ -176,6 +176,101 @@ pub const Palette = struct {
         .highlight = Color.fromRgb(0, 80, 120),
         .highlight_text = Color.fromRgb(255, 255, 255),
     };
+
+    pub const tokyo_night = Palette{
+        .primary = Color.fromRgb(122, 162, 247), // blue
+        .secondary = Color.fromRgb(187, 154, 247), // purple
+        .accent = Color.fromRgb(224, 175, 104), // yellow
+        .background = Color.fromRgb(26, 27, 38), // bg
+        .surface = Color.fromRgb(36, 40, 59), // bg_highlight
+        .overlay = Color.fromRgb(41, 46, 66), // terminal_black
+        .foreground = Color.fromRgb(192, 202, 245), // fg
+        .muted = Color.fromRgb(144, 153, 191), // comment
+        .subtle = Color.fromRgb(86, 95, 137), // dark5
+        .success = Color.fromRgb(158, 206, 106), // green
+        .warning = Color.fromRgb(224, 175, 104), // yellow
+        .danger = Color.fromRgb(247, 118, 142), // red
+        .info = Color.fromRgb(125, 207, 255), // cyan
+        .border_color = Color.fromRgb(41, 46, 66),
+        .border_focus = Color.fromRgb(122, 162, 247),
+        .highlight = Color.fromRgb(41, 46, 66),
+        .highlight_text = Color.fromRgb(192, 202, 245),
+    };
+
+    pub const gruvbox_dark = Palette{
+        .primary = Color.fromRgb(131, 165, 152), // aqua
+        .secondary = Color.fromRgb(211, 134, 155), // purple
+        .accent = Color.fromRgb(250, 189, 47), // yellow
+        .background = Color.fromRgb(40, 40, 40), // bg
+        .surface = Color.fromRgb(60, 56, 54), // bg1
+        .overlay = Color.fromRgb(80, 73, 69), // bg2
+        .foreground = Color.fromRgb(235, 219, 178), // fg
+        .muted = Color.fromRgb(168, 153, 132), // gray
+        .subtle = Color.fromRgb(124, 111, 100), // bg4
+        .success = Color.fromRgb(184, 187, 38), // green
+        .warning = Color.fromRgb(250, 189, 47), // yellow
+        .danger = Color.fromRgb(251, 73, 52), // red
+        .info = Color.fromRgb(131, 165, 152), // aqua
+        .border_color = Color.fromRgb(80, 73, 69),
+        .border_focus = Color.fromRgb(131, 165, 152),
+        .highlight = Color.fromRgb(80, 73, 69),
+        .highlight_text = Color.fromRgb(235, 219, 178),
+    };
+
+    pub const solarized_dark = Palette{
+        .primary = Color.fromRgb(38, 139, 210), // blue
+        .secondary = Color.fromRgb(108, 113, 196), // violet
+        .accent = Color.fromRgb(181, 137, 0), // yellow
+        .background = Color.fromRgb(0, 43, 54), // base03
+        .surface = Color.fromRgb(7, 54, 66), // base02
+        .overlay = Color.fromRgb(88, 110, 117), // base01
+        .foreground = Color.fromRgb(131, 148, 150), // base0
+        .muted = Color.fromRgb(101, 123, 131), // base00
+        .subtle = Color.fromRgb(88, 110, 117), // base01
+        .success = Color.fromRgb(133, 153, 0), // green
+        .warning = Color.fromRgb(181, 137, 0), // yellow
+        .danger = Color.fromRgb(220, 50, 47), // red
+        .info = Color.fromRgb(42, 161, 152), // cyan
+        .border_color = Color.fromRgb(88, 110, 117),
+        .border_focus = Color.fromRgb(38, 139, 210),
+        .highlight = Color.fromRgb(7, 54, 66),
+        .highlight_text = Color.fromRgb(147, 161, 161),
+    };
+
+    pub const solarized_light = Palette{
+        .primary = Color.fromRgb(38, 139, 210), // blue
+        .secondary = Color.fromRgb(108, 113, 196), // violet
+        .accent = Color.fromRgb(181, 137, 0), // yellow
+        .background = Color.fromRgb(253, 246, 227), // base3
+        .surface = Color.fromRgb(238, 232, 213), // base2
+        .overlay = Color.fromRgb(147, 161, 161), // base1
+        .foreground = Color.fromRgb(101, 123, 131), // base00
+        .muted = Color.fromRgb(131, 148, 150), // base0
+        .subtle = Color.fromRgb(147, 161, 161), // base1
+        .success = Color.fromRgb(133, 153, 0), // green
+        .warning = Color.fromRgb(181, 137, 0), // yellow
+        .danger = Color.fromRgb(220, 50, 47), // red
+        .info = Color.fromRgb(42, 161, 152), // cyan
+        .border_color = Color.fromRgb(147, 161, 161),
+        .border_focus = Color.fromRgb(38, 139, 210),
+        .highlight = Color.fromRgb(238, 232, 213),
+        .highlight_text = Color.fromRgb(88, 110, 117),
+    };
+
+    /// List of all built-in palette names for iteration.
+    pub const builtins = [_]struct { name: []const u8, palette: Palette }{
+        .{ .name = "Default Dark", .palette = default_dark },
+        .{ .name = "Default Light", .palette = default_light },
+        .{ .name = "Catppuccin Mocha", .palette = catppuccin_mocha },
+        .{ .name = "Catppuccin Latte", .palette = catppuccin_latte },
+        .{ .name = "Dracula", .palette = dracula },
+        .{ .name = "Nord", .palette = nord },
+        .{ .name = "Tokyo Night", .palette = tokyo_night },
+        .{ .name = "Gruvbox Dark", .palette = gruvbox_dark },
+        .{ .name = "Solarized Dark", .palette = solarized_dark },
+        .{ .name = "Solarized Light", .palette = solarized_light },
+        .{ .name = "High Contrast", .palette = high_contrast },
+    };
 };
 
 /// Adaptive palette that resolves based on dark/light background.
@@ -196,6 +291,75 @@ pub const AdaptivePalette = struct {
         .light = Palette.default_light,
         .dark = Palette.default_dark,
     };
+
+    pub const solarized = AdaptivePalette{
+        .light = Palette.solarized_light,
+        .dark = Palette.solarized_dark,
+    };
+};
+
+/// Manages the active theme at runtime.
+/// Holds a current theme and provides methods to switch between palettes.
+pub const ThemeManager = struct {
+    current: Theme,
+    is_dark: bool,
+    palette_index: usize,
+
+    /// Initialize with auto-detected dark/light background.
+    pub fn init() ThemeManager {
+        const is_dark = @import("color.zig").hasDarkBackground();
+        const palette = AdaptivePalette.default.resolve(is_dark);
+        return .{
+            .current = Theme.fromPalette(palette),
+            .is_dark = is_dark,
+            .palette_index = 0,
+        };
+    }
+
+    /// Initialize with a specific palette.
+    pub fn initWithPalette(palette: Palette) ThemeManager {
+        const is_dark = @import("color.zig").hasDarkBackground();
+        return .{
+            .current = Theme.fromPalette(palette),
+            .is_dark = is_dark,
+            .palette_index = 0,
+        };
+    }
+
+    /// Switch to a specific palette.
+    pub fn setPalette(self: *ThemeManager, palette: Palette) void {
+        self.current = Theme.fromPalette(palette);
+    }
+
+    /// Switch to a named built-in palette by index.
+    pub fn setBuiltinByIndex(self: *ThemeManager, index: usize) void {
+        if (index < Palette.builtins.len) {
+            self.palette_index = index;
+            self.current = Theme.fromPalette(Palette.builtins[index].palette);
+        }
+    }
+
+    /// Cycle to the next built-in palette.
+    pub fn nextBuiltin(self: *ThemeManager) void {
+        self.palette_index = (self.palette_index + 1) % Palette.builtins.len;
+        self.current = Theme.fromPalette(Palette.builtins[self.palette_index].palette);
+    }
+
+    /// Cycle to the previous built-in palette.
+    pub fn prevBuiltin(self: *ThemeManager) void {
+        self.palette_index = if (self.palette_index == 0) Palette.builtins.len - 1 else self.palette_index - 1;
+        self.current = Theme.fromPalette(Palette.builtins[self.palette_index].palette);
+    }
+
+    /// Get the name of the current built-in palette.
+    pub fn currentName(self: *const ThemeManager) []const u8 {
+        return Palette.builtins[self.palette_index].name;
+    }
+
+    /// Get the total number of built-in palettes.
+    pub fn builtinCount() usize {
+        return Palette.builtins.len;
+    }
 };
 
 /// Theme contains a palette and derived component styles.
