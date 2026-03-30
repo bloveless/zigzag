@@ -6,6 +6,8 @@ const color_mod = @import("color.zig");
 const border_mod = @import("border.zig");
 const ansi = @import("../terminal/ansi.zig");
 const measure = @import("../layout/measure.zig");
+const overflow_mod = @import("overflow.zig");
+pub const Overflow = overflow_mod.Overflow;
 
 pub const Color = color_mod.Color;
 pub const Border = border_mod.Border;
@@ -125,6 +127,9 @@ pub const Style = struct {
 
     // Transform function
     transform_fn: ?*const fn (std.mem.Allocator, []const u8) []const u8 = null,
+
+    // Text overflow
+    overflow_mode: Overflow = .visible,
 
     // Whitespace formatting controls
     underline_spaces: bool = false,
@@ -483,6 +488,13 @@ pub const Style = struct {
         return s;
     }
 
+    // Overflow setter
+    pub fn overflow(self: Self, mode: Overflow) Self {
+        var s = self;
+        s.overflow_mode = mode;
+        return s;
+    }
+
     // Alignment setters
     pub fn alignH(self: Self, a: Align) Self {
         var s = self;
@@ -583,6 +595,14 @@ pub const Style = struct {
         // Apply transform function
         if (self.transform_fn) |tf| {
             processed_text = tf(allocator, processed_text);
+        }
+
+        // Apply overflow policy before dimension calculation
+        if (self.overflow_mode != .visible) {
+            const ow = self.width_val orelse (self.max_width_val orelse 0);
+            if (ow > 0) {
+                processed_text = overflow_mod.applyOverflow(allocator, processed_text, ow, self.overflow_mode) catch processed_text;
+            }
         }
 
         // Calculate content dimensions
