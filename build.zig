@@ -39,6 +39,7 @@ pub fn build(b: *std.Build) void {
         "mouse",
         "accessibility",
         "wasm_app",
+        "sub_program",
     };
 
     for (examples) |example_name| {

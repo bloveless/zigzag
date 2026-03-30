@@ -55,6 +55,7 @@ pub const program = @import("core/program.zig");
 pub const Program = program.Program;
 pub const Cmd = program.Cmd;
 pub const command = @import("core/command.zig");
+pub const SubProgram = @import("core/sub_program.zig").SubProgram;
 pub const Context = @import("core/context.zig").Context;
 pub const Options = @import("core/context.zig").Options;
 pub const msg = @import("core/message.zig");
