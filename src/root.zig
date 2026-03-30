@@ -165,6 +165,8 @@ pub const components = struct {
     pub const ContextMenu = @import("components/context_menu.zig").ContextMenu;
     pub const Form = @import("components/form.zig").Form;
     pub const Markdown = @import("components/markdown.zig").Markdown;
+    pub const heatmap = @import("components/heatmap.zig");
+    pub const Heatmap = heatmap.Heatmap;
 };
 
 // Re-export commonly used components at top level
@@ -199,6 +201,7 @@ pub const ToastLevel = components.ToastLevel;
 pub const ContextMenu = components.ContextMenu;
 pub const Form = components.Form;
 pub const Markdown = components.Markdown;
+pub const Heatmap = components.Heatmap;
 
 // Focus management
 pub const FocusGroup = components.focus.FocusGroup;
