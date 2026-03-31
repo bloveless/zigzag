@@ -165,6 +165,8 @@ pub const components = struct {
     pub const ContextMenu = @import("components/context_menu.zig").ContextMenu;
     pub const Form = @import("components/form.zig").Form;
     pub const Markdown = @import("components/markdown.zig").Markdown;
+    pub const diff_view = @import("components/diff_view.zig");
+    pub const DiffView = diff_view.DiffView;
 };
 
 // Re-export commonly used components at top level
