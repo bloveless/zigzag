@@ -55,6 +55,9 @@ pub const program = @import("core/program.zig");
 pub const Program = program.Program;
 pub const Cmd = program.Cmd;
 pub const command = @import("core/command.zig");
+pub const async_task = @import("core/async_task.zig");
+pub const AsyncRunner = async_task.AsyncRunner;
+pub const SubProgram = @import("core/sub_program.zig").SubProgram;
 pub const Context = @import("core/context.zig").Context;
 pub const Options = @import("core/context.zig").Options;
 pub const msg = @import("core/message.zig");
@@ -107,6 +110,12 @@ pub const layout = @import("layout/layout.zig");
 pub const measure = @import("layout/measure.zig");
 pub const join = @import("layout/join.zig");
 pub const place = @import("layout/place.zig");
+pub const flex = @import("layout/flex.zig");
+pub const Flex = flex;
+pub const FlexConstraint = flex.Constraint;
+pub const FlexItem = flex.Item;
+pub const FlexOptions = flex.FlexOptions;
+pub const FlexRect = flex.Rect;
 
 // Accessibility
 pub const accessibility = @import("accessibility.zig");
@@ -167,6 +176,16 @@ pub const components = struct {
     pub const Markdown = @import("components/markdown.zig").Markdown;
     pub const diff_view = @import("components/diff_view.zig");
     pub const DiffView = diff_view.DiffView;
+    pub const code_view = @import("components/code_view.zig");
+    pub const CodeView = code_view.CodeView;
+    pub const sortable_table = @import("components/sortable_table.zig");
+    pub const SortableTable = sortable_table.SortableTable;
+    pub const virtual_list = @import("components/virtual_list.zig");
+    pub const VirtualList = virtual_list.VirtualList;
+    pub const Calendar = @import("components/calendar.zig").Calendar;
+    pub const heatmap = @import("components/heatmap.zig");
+    pub const Heatmap = heatmap.Heatmap;
+    pub const Gauge = @import("components/gauge.zig").Gauge;
 };
 
 // Re-export commonly used components at top level
@@ -201,6 +220,9 @@ pub const ToastLevel = components.ToastLevel;
 pub const ContextMenu = components.ContextMenu;
 pub const Form = components.Form;
 pub const Markdown = components.Markdown;
+pub const Calendar = components.Calendar;
+pub const Heatmap = components.Heatmap;
+pub const Gauge = components.Gauge;
 
 // Focus management
 pub const FocusGroup = components.focus.FocusGroup;
@@ -269,6 +291,9 @@ pub const ColorProfile = color.ColorProfile;
 pub const AdaptiveColor = color.AdaptiveColor;
 pub const CompleteColor = color.CompleteColor;
 pub const CompleteAdaptiveColor = color.CompleteAdaptiveColor;
+
+// Overflow
+pub const Overflow = style.Overflow;
 
 // Style utilities
 pub const StyleRange = style.StyleRange;
