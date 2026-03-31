@@ -171,6 +171,7 @@ pub const components = struct {
     pub const ContextMenu = @import("components/context_menu.zig").ContextMenu;
     pub const Form = @import("components/form.zig").Form;
     pub const Markdown = @import("components/markdown.zig").Markdown;
+    pub const Calendar = @import("components/calendar.zig").Calendar;
     pub const heatmap = @import("components/heatmap.zig");
     pub const Heatmap = heatmap.Heatmap;
     pub const Gauge = @import("components/gauge.zig").Gauge;
@@ -208,6 +209,7 @@ pub const ToastLevel = components.ToastLevel;
 pub const ContextMenu = components.ContextMenu;
 pub const Form = components.Form;
 pub const Markdown = components.Markdown;
+pub const Calendar = components.Calendar;
 pub const Heatmap = components.Heatmap;
 pub const Gauge = components.Gauge;
 
