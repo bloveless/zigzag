@@ -39,6 +39,7 @@ pub fn build(b: *std.Build) void {
         "mouse",
         "accessibility",
         "wasm_app",
+        "diff_view",
         "code_view",
         "sortable_table",
         "text_overflow",
