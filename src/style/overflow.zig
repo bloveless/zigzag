@@ -116,10 +116,10 @@ fn applyWordWrap(result: *std.array_list.Managed(u8), line: []const u8, max_widt
         return;
     }
 
+    // Split line into words and re-flow them
     var visible_width: usize = 0;
     var i: usize = 0;
-    var last_space: usize = 0;
-    var last_space_result_pos: usize = result.items.len;
+    var line_start = true;
 
     while (i < line.len) {
         // Skip ANSI sequences
@@ -132,29 +132,53 @@ fn applyWordWrap(result: *std.array_list.Managed(u8), line: []const u8, max_widt
             continue;
         }
 
+        // Collect a word (non-space run)
         if (line[i] == ' ') {
-            last_space = i;
-            last_space_result_pos = result.items.len;
-        }
-
-        const char_width = charDisplayWidth(line, i);
-        if (visible_width + char_width > max_width) {
-            // Wrap at last space if possible
-            if (last_space_result_pos > result.items.len - visible_width + 1) {
-                // Replace space with newline in result
-                result.items[last_space_result_pos] = '\n';
-                visible_width = measure.width(line[last_space + 1 .. i]);
-            } else {
-                // No space found, wrap at current position
+            // Space: emit if it fits, otherwise start new line
+            if (visible_width + 1 > max_width) {
                 try result.append('\n');
                 visible_width = 0;
+                line_start = true;
+                i += 1;
+                // Skip consecutive spaces at wrap point
+                while (i < line.len and line[i] == ' ') : (i += 1) {}
+                continue;
             }
+            if (!line_start) {
+                try result.append(' ');
+                visible_width += 1;
+            }
+            i += 1;
+            continue;
         }
 
-        const byte_len = charByteLen(line[i]);
-        try result.appendSlice(line[i .. i + byte_len]);
-        visible_width += char_width;
-        i += byte_len;
+        // Measure the next word
+        const word_start = i;
+        var word_width: usize = 0;
+        while (i < line.len and line[i] != ' ') {
+            // Skip ANSI inside word
+            if (line[i] == 0x1b and i + 1 < line.len and line[i + 1] == '[') {
+                i += 2;
+                while (i < line.len and line[i] != 'm' and line[i] != 'H' and line[i] != 'J' and line[i] != 'K' and line[i] != 'A' and line[i] != 'B' and line[i] != 'C' and line[i] != 'D') : (i += 1) {}
+                if (i < line.len) i += 1;
+                continue;
+            }
+            word_width += charDisplayWidth(line, i);
+            i += charByteLen(line[i]);
+        }
+        const word = line[word_start..i];
+
+        // If word doesn't fit on current line, wrap
+        if (!line_start and visible_width + word_width > max_width) {
+            try result.append('\n');
+            visible_width = 0;
+            line_start = true;
+        }
+
+        // If single word is wider than max, just emit it (char-wrap fallback)
+        try result.appendSlice(word);
+        visible_width += word_width;
+        line_start = false;
     }
 }
 
