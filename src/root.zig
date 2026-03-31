@@ -107,6 +107,12 @@ pub const layout = @import("layout/layout.zig");
 pub const measure = @import("layout/measure.zig");
 pub const join = @import("layout/join.zig");
 pub const place = @import("layout/place.zig");
+pub const flex = @import("layout/flex.zig");
+pub const Flex = flex;
+pub const FlexConstraint = flex.Constraint;
+pub const FlexItem = flex.Item;
+pub const FlexOptions = flex.FlexOptions;
+pub const FlexRect = flex.Rect;
 
 // Accessibility
 pub const accessibility = @import("accessibility.zig");
