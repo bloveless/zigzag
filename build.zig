@@ -39,6 +39,7 @@ pub fn build(b: *std.Build) void {
         "mouse",
         "accessibility",
         "wasm_app",
+        "sortable_table",
         "text_overflow",
         "async_tasks",
         "sub_program",
