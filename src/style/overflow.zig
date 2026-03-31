@@ -45,7 +45,7 @@ pub fn applyOverflow(
         }
     }
 
-    return result.items;
+    return try result.toOwnedSlice();
 }
 
 fn applyClip(result: *std.array_list.Managed(u8), line: []const u8, max_width: u16) !void {
