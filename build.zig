@@ -40,6 +40,8 @@ pub fn build(b: *std.Build) void {
         "accessibility",
         "wasm_app",
         "heatmap",
+        "gauge",
+        "flex_layout",
     };
 
     for (examples) |example_name| {

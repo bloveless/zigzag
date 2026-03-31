@@ -4,6 +4,7 @@
 pub const measure = @import("measure.zig");
 pub const join = @import("join.zig");
 pub const place = @import("place.zig");
+pub const flex = @import("flex.zig");
 
 // Re-export common types
 pub const VAlign = join.VAlign;
