@@ -1,5 +1,6 @@
 //! Calendar/DatePicker component.
 //! Displays a month view grid with date selection and navigation.
+//! Fully customizable: styles, labels, symbols, layout.
 
 const std = @import("std");
 const style_mod = @import("../style/style.zig");
@@ -22,6 +23,31 @@ pub const Calendar = struct {
     /// Focused state.
     focused: bool = true,
 
+    // Customizable labels
+    /// Month names (12 entries).
+    month_names: [12][]const u8 = .{
+        "January", "February", "March",     "April",   "May",      "June",
+        "July",    "August",   "September", "October", "November", "December",
+    },
+    /// Day-of-week headers when week starts Monday (7 entries).
+    day_headers_mon: [7][]const u8 = .{ "Mo", "Tu", "We", "Th", "Fr", "Sa", "Su" },
+    /// Day-of-week headers when week starts Sunday (7 entries).
+    day_headers_sun: [7][]const u8 = .{ "Su", "Mo", "Tu", "We", "Th", "Fr", "Sa" },
+
+    // Navigation symbols
+    /// Previous month indicator in title.
+    prev_symbol: []const u8 = "<",
+    /// Next month indicator in title.
+    next_symbol: []const u8 = ">",
+    /// Title format: 0=prev_symbol, 1=month_name, 2=year, 3=next_symbol.
+    /// Set to "" to hide title.
+    title_prefix: []const u8 = " ",
+    title_suffix: []const u8 = " ",
+
+    // Cell layout
+    /// Width of each day cell in characters (minimum 2).
+    cell_width: u8 = 4,
+
     // Styles
     title_style: style_mod.Style = blk: {
         var s = style_mod.Style{};
@@ -37,6 +63,13 @@ pub const Calendar = struct {
         break :blk s;
     },
     selected_style: style_mod.Style = blk: {
+        var s = style_mod.Style{};
+        s = s.bold(true);
+        s = s.fg(Color.blue());
+        s = s.inline_style(true);
+        break :blk s;
+    },
+    cursor_style: style_mod.Style = blk: {
         var s = style_mod.Style{};
         s = s.bold(true);
         s = s.bg(Color.blue());
@@ -61,11 +94,29 @@ pub const Calendar = struct {
         s = s.inline_style(true);
         break :blk s;
     },
+    /// Style for the prev/next symbols in the title.
+    nav_style: style_mod.Style = blk: {
+        var s = style_mod.Style{};
+        s = s.fg(Color.gray(10));
+        s = s.inline_style(true);
+        break :blk s;
+    },
+    /// Style for marked dates (applied when no custom color is set).
+    marked_style: style_mod.Style = blk: {
+        var s = style_mod.Style{};
+        s = s.bold(true);
+        s = s.inline_style(true);
+        break :blk s;
+    },
 
     pub fn addMarkedDate(self: *Calendar, day: u8, c: Color) void {
         if (day >= 1 and day <= 31) {
             self.marked_days[day - 1] = c;
         }
+    }
+
+    pub fn clearMarkedDates(self: *Calendar) void {
+        self.marked_days = .{null} ** 31;
     }
 
     pub fn update(self: *Calendar, key: keys.KeyEvent) void {
@@ -137,24 +188,23 @@ pub const Calendar = struct {
         var result = std.array_list.Managed(u8).init(allocator);
         const writer = result.writer();
 
-        // Title: month name + year
-        const month_names = [_][]const u8{
-            "January", "February", "March",     "April",   "May",      "June",
-            "July",    "August",   "September", "October", "November", "December",
-        };
-        const mname = if (self.month >= 1 and self.month <= 12) month_names[self.month - 1] else "?";
-        const title = std.fmt.allocPrint(allocator, " < {s} {d} > ", .{ mname, self.year }) catch "?";
-        writer.writeAll(self.title_style.render(allocator, title) catch title) catch {};
+        const cw: usize = @max(2, self.cell_width);
+
+        // Title: < month year >
+        const mname = if (self.month >= 1 and self.month <= 12) self.month_names[self.month - 1] else "?";
+        const nav_prev = self.nav_style.render(allocator, self.prev_symbol) catch self.prev_symbol;
+        const nav_next = self.nav_style.render(allocator, self.next_symbol) catch self.next_symbol;
+        const title_text = std.fmt.allocPrint(allocator, "{s}{s}{s} {d}{s}{s}", .{
+            self.title_prefix, nav_prev, mname, self.year, nav_next, self.title_suffix,
+        }) catch "?";
+        writer.writeAll(self.title_style.render(allocator, title_text) catch title_text) catch {};
         writer.writeByte('\n') catch {};
 
-        // Day headers
-        const headers_mon = [_][]const u8{ "Mo", "Tu", "We", "Th", "Fr", "Sa", "Su" };
-        const headers_sun = [_][]const u8{ "Su", "Mo", "Tu", "We", "Th", "Fr", "Sa" };
-        const headers = if (self.week_start_monday) &headers_mon else &headers_sun;
-
+        // Day-of-week headers — aligned to cell_width columns
+        const headers = if (self.week_start_monday) &self.day_headers_mon else &self.day_headers_sun;
         for (headers) |hdr| {
-            writer.writeByte(' ') catch {};
-            writer.writeAll(self.header_style.render(allocator, hdr) catch hdr) catch {};
+            const padded = padCenter(allocator, hdr, cw);
+            writer.writeAll(self.header_style.render(allocator, padded) catch padded) catch {};
         }
         writer.writeByte('\n') catch {};
 
@@ -165,15 +215,15 @@ pub const Calendar = struct {
             first_dow = (first_dow + 1) % 7;
         }
 
-        // Leading blanks
+        // Leading blanks — same cell width
         for (0..first_dow) |_| {
-            writer.writeAll("    ") catch {};
+            for (0..cw) |_| writer.writeByte(' ') catch {};
         }
 
         var col = first_dow;
         for (1..@as(usize, dim) + 1) |d| {
             const day: u8 = @intCast(d);
-            const day_str = std.fmt.allocPrint(allocator, "{d:>2}", .{day}) catch "??";
+            const day_str = std.fmt.allocPrint(allocator, "{d}", .{day}) catch "??";
 
             const is_today = (day == self.today_day and self.month == self.today_month and self.year == self.today_year);
             const is_selected = (day == self.selected_day);
@@ -185,19 +235,14 @@ pub const Calendar = struct {
 
             var s: style_mod.Style = undefined;
             if (is_cursor) {
-                s = self.selected_style;
+                s = self.cursor_style;
             } else if (is_selected) {
-                var sel = style_mod.Style{};
-                sel = sel.bold(true);
-                sel = sel.fg(Color.blue());
-                sel = sel.inline_style(true);
-                s = sel;
+                s = self.selected_style;
             } else if (is_today) {
                 s = self.today_style;
             } else if (marked_color) |mc| {
-                var ms = style_mod.Style{};
+                var ms = self.marked_style;
                 ms = ms.fg(mc);
-                ms = ms.inline_style(true);
                 s = ms;
             } else if (is_weekend) {
                 s = self.weekend_style;
@@ -205,9 +250,9 @@ pub const Calendar = struct {
                 s = self.normal_style;
             }
 
-            writer.writeByte(' ') catch {};
-            writer.writeAll(s.render(allocator, day_str) catch day_str) catch {};
-            writer.writeByte(' ') catch {};
+            // Center the day number within cell_width
+            const padded = padCenter(allocator, day_str, cw);
+            writer.writeAll(s.render(allocator, padded) catch padded) catch {};
 
             col += 1;
             if (col >= 7) {
@@ -217,6 +262,18 @@ pub const Calendar = struct {
         }
 
         return result.items;
+    }
+
+    fn padCenter(allocator: std.mem.Allocator, text: []const u8, target: usize) []const u8 {
+        if (text.len >= target) return text[0..target];
+        var buf = std.array_list.Managed(u8).init(allocator);
+        const pad = target - text.len;
+        const left = pad / 2;
+        const right = pad - left;
+        for (0..left) |_| buf.append(' ') catch {};
+        buf.appendSlice(text) catch {};
+        for (0..right) |_| buf.append(' ') catch {};
+        return buf.items;
     }
 
     // Calendar math
@@ -239,8 +296,8 @@ pub const Calendar = struct {
         var y: i32 = @intCast(y_in);
         if (m < 3) y -= 1;
         const mi: usize = @intCast(m - 1);
-        const result = @mod(y + @divTrunc(y, 4) - @divTrunc(y, 100) + @divTrunc(y, 400) + t[mi] + @as(i32, d), 7);
-        // result: 0=Sunday. Convert to 0=Monday.
-        return @intCast(@mod(result + 6, 7));
+        const r = @mod(y + @divTrunc(y, 4) - @divTrunc(y, 100) + @divTrunc(y, 400) + t[mi] + @as(i32, d), 7);
+        // r: 0=Sunday. Convert to 0=Monday.
+        return @intCast(@mod(r + 6, 7));
     }
 };
