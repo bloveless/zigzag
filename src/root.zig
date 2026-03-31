@@ -107,6 +107,12 @@ pub const layout = @import("layout/layout.zig");
 pub const measure = @import("layout/measure.zig");
 pub const join = @import("layout/join.zig");
 pub const place = @import("layout/place.zig");
+pub const flex = @import("layout/flex.zig");
+pub const Flex = flex;
+pub const FlexConstraint = flex.Constraint;
+pub const FlexItem = flex.Item;
+pub const FlexOptions = flex.FlexOptions;
+pub const FlexRect = flex.Rect;
 
 // Accessibility
 pub const accessibility = @import("accessibility.zig");
@@ -167,6 +173,10 @@ pub const components = struct {
     pub const Markdown = @import("components/markdown.zig").Markdown;
     pub const virtual_list = @import("components/virtual_list.zig");
     pub const VirtualList = virtual_list.VirtualList;
+    pub const Calendar = @import("components/calendar.zig").Calendar;
+    pub const heatmap = @import("components/heatmap.zig");
+    pub const Heatmap = heatmap.Heatmap;
+    pub const Gauge = @import("components/gauge.zig").Gauge;
 };
 
 // Re-export commonly used components at top level
@@ -201,6 +211,9 @@ pub const ToastLevel = components.ToastLevel;
 pub const ContextMenu = components.ContextMenu;
 pub const Form = components.Form;
 pub const Markdown = components.Markdown;
+pub const Calendar = components.Calendar;
+pub const Heatmap = components.Heatmap;
+pub const Gauge = components.Gauge;
 
 // Focus management
 pub const FocusGroup = components.focus.FocusGroup;
