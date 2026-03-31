@@ -25,6 +25,12 @@ pub fn VirtualList(comptime T: type) type {
         focused: bool = true,
         /// Render function: called for each visible item.
         render_fn: ?*const fn (item: T, index: usize, selected: bool, allocator: std.mem.Allocator) []const u8 = null,
+        /// Wrap cursor around list ends.
+        wrap_around: bool = false,
+        /// Text shown when list is empty.
+        empty_text: []const u8 = "(empty)",
+        /// Width for each row (0 = no padding).
+        row_width: u16 = 0,
 
         // Styling
         cursor_style: style_mod.Style = blk: {
@@ -76,11 +82,19 @@ pub fn VirtualList(comptime T: type) type {
 
             switch (key.key) {
                 .up => {
-                    if (self.cursor > 0) self.cursor -= 1;
+                    if (self.cursor > 0) {
+                        self.cursor -= 1;
+                    } else if (self.wrap_around and total > 0) {
+                        self.cursor = total - 1;
+                    }
                     self.ensureVisible();
                 },
                 .down => {
-                    if (self.cursor + 1 < total) self.cursor += 1;
+                    if (self.cursor + 1 < total) {
+                        self.cursor += 1;
+                    } else if (self.wrap_around) {
+                        self.cursor = 0;
+                    }
                     self.ensureVisible();
                 },
                 .page_up => {
@@ -138,7 +152,7 @@ pub fn VirtualList(comptime T: type) type {
             const vh: usize = self.viewport_height;
 
             if (total == 0) {
-                writer.writeAll("(empty)") catch {};
+                writer.writeAll(self.empty_text) catch {};
                 return result.items;
             }
 

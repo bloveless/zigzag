@@ -8,11 +8,13 @@ A delightful TUI framework for Zig, inspired by [Bubble Tea](https://github.com/
 
 - **Elm Architecture** - Model-Update-View pattern for predictable state management
 - **Rich Styling** - Comprehensive styling system with colors, borders, padding, margin backgrounds, per-side border colors, tab width control, style ranges, full style inheritance, text transforms, whitespace formatting controls, and unset methods
-- **22 Pre-built Components** - TextInput (with autocomplete/word movement), TextArea, List (fuzzy filtering), Table (interactive with row selection), Viewport, Progress (color gradients), Spinner, Tree, StyledList, Sparkline, Chart (linear, stepped, smoothed, area, scatter), BarChart, Canvas, Notification/Toast, Confirm dialog, Modal/Popup, Tooltip, Help, Paginator, Timer, FilePicker, TabGroup (multi-view routing)
+- **34+ Pre-built Components** - TextInput (with autocomplete/word movement), TextArea, List (fuzzy filtering), Table (interactive with row selection), SortableTable (column sorting, filtering), Viewport, VirtualList (lazy rendering for 100K+ items), Progress (color gradients), Gauge (bar, level meter, blocks with thresholds), Spinner, Tree, StyledList, Sparkline, Chart (linear, stepped, smoothed, area, scatter), BarChart, Heatmap (4 color scales), Canvas, Calendar/DatePicker, CodeView (syntax highlighting for 5 languages), DiffView (unified and side-by-side), Notification/Toast, Confirm dialog, Modal/Popup, Tooltip, Help, Paginator, Timer, FilePicker, TabGroup (multi-view routing), Form, Markdown, Dropdown, Checkbox/RadioGroup, Slider, MenuBar, ContextMenu
 - **Focus Management** - `FocusGroup` with Tab/Shift+Tab cycling, comptime focusable protocol, `FocusStyle` for visual focus ring indicators
 - **Keybinding Management** - Structured `KeyBinding`/`KeyMap` with matching, display formatting, and Help component integration
 - **Color System** - ANSI 16, 256, and TrueColor with adaptive colors, color profile detection, and dark background detection
-- **Command System** - Quit, tick, repeating tick (`every`), batch, sequence, suspend/resume, runtime terminal control (mouse, cursor, alt screen, title), print above program, comprehensive image rendering
+- **Command System** - Quit, tick, repeating tick (`every`), batch, sequence, suspend/resume, runtime terminal control (mouse, cursor, alt screen, title), print above program, comprehensive image rendering, AsyncRunner for background tasks
+- **Sub-Programs** - Embed independent child models inside a parent with message routing and lifecycle management
+- **Text Overflow** - Configurable overflow policies (hidden, ellipsis, word_wrap, char_wrap) integrated into the Style system
 - **Image Rendering** - Kitty/iTerm2/Sixel with in-memory data, file paths, image caching (transmit once, display many), z-index layering, unicode placeholders for text reflow, protocol override, and file validation
 - **Custom I/O** - Pipe-friendly with configurable input/output streams for testing and automation
 - **Kitty Keyboard Protocol** - Modern keyboard handling with key release events and unambiguous key identification
@@ -20,7 +22,7 @@ A delightful TUI framework for Zig, inspired by [Bubble Tea](https://github.com/
 - **Debug Logging** - File-based timestamped logging since stdout is owned by the renderer
 - **Message Filtering** - Intercept and transform messages before they reach your model
 - **ANSI Compression** - Reduce output overhead with diff-based style state tracking and redundant sequence elimination
-- **Layout** - Horizontal/vertical joining, ANSI-aware measurement, 2D placement, float-based positioning, horizontal/vertical single-axis placement, overlay compositing
+- **Layout** - Horizontal/vertical joining, ANSI-aware measurement, 2D placement, float-based positioning, horizontal/vertical single-axis placement, overlay compositing, constraint-based Flexbox engine (fixed, percentage, min, max, ratio, fill), layer compositing with z-ordering
 - **Cross-platform** - Works on macOS, Linux, and Windows
 - **Zero Dependencies** - Pure Zig with no external dependencies
 
@@ -562,6 +564,198 @@ const with_content = try tabs.viewWithContent(allocator, "No active tab");
 
 Per-tab route callback hooks: `render_fn`, `key_fn`, `on_enter_fn`, `on_leave_fn`.
 
+### Gauge
+
+Visual meter with bar, level meter, and block display styles:
+
+```zig
+var gauge = zz.Gauge{};
+gauge.value = 73.5;
+gauge.width = 40;
+gauge.display_style = .bar;     // .bar, .level_meter, .blocks
+gauge.show_percent = true;
+gauge.label = "CPU";
+gauge.full_char = "\xe2\x96\x88";   // Customizable fill character
+gauge.empty_char = "\xe2\x96\x91";  // Customizable empty character
+gauge.thresholds = &.{
+    .{ .value = 80, .color = zz.Color.yellow() },
+    .{ .value = 90, .color = zz.Color.red() },
+};
+const output = gauge.view(allocator);
+```
+
+### Heatmap
+
+2D data visualization with configurable color scales:
+
+```zig
+var heatmap = zz.Heatmap.init(allocator);
+heatmap.setData(7, 24, data);
+heatmap.row_labels = &.{"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"};
+heatmap.color_scale = .green_scale; // .green_scale, .cool_to_hot, .grayscale, .blue_red
+heatmap.cell_width = 3;
+heatmap.show_legend = true;
+heatmap.show_values = true;
+const output = heatmap.view(allocator);
+```
+
+### Calendar
+
+Month view date picker with keyboard navigation:
+
+```zig
+var cal = zz.Calendar{};
+cal.year = 2026;
+cal.month = 3;
+cal.today_day = 30;
+cal.today_month = 3;
+cal.today_year = 2026;
+cal.cell_width = 4;                // Column width for alignment
+cal.week_start_monday = true;
+cal.day_headers_mon = .{ "Mo", "Tu", "We", "Th", "Fr", "Sa", "Su" }; // Customizable
+cal.month_names = .{ "Jan", "Feb", ... };  // Customizable
+cal.prev_symbol = "\xe2\x97\x80"; // Customizable nav symbols
+cal.addMarkedDate(25, zz.Color.red());
+cal.update(key_event);             // Arrows, Enter, PgUp/PgDn, Shift+L/R
+const output = cal.view(allocator);
+```
+
+### VirtualList
+
+Efficient lazy-rendered list for large datasets (100K+ items):
+
+```zig
+var vlist = zz.components.virtual_list.VirtualList(usize){};
+vlist.items = &huge_dataset;
+vlist.viewport_height = 20;
+vlist.render_fn = &myRenderFn;
+vlist.wrap_around = true;         // Cursor wraps at ends
+vlist.empty_text = "No items";    // Custom empty state
+vlist.cursor_symbol = "> ";       // Customizable
+vlist.show_scrollbar = true;
+vlist.update(key_event);
+const output = vlist.view(allocator);
+```
+
+### SortableTable
+
+Table with column sorting and text filtering:
+
+```zig
+var table = zz.components.sortable_table.SortableTable(4).init(allocator);
+table.setHeaders(.{ "Name", "Role", "City", "Score" });
+try table.addRow(.{ "Alice", "Engineer", "NYC", "95" });
+// Press 1-4 to sort by column, / to filter
+table.update(key_event);
+const output = table.view(allocator);
+```
+
+### CodeView
+
+Syntax-highlighted code display:
+
+```zig
+var cv = zz.components.code_view.CodeView{};
+cv.source = source_code;
+cv.language = .zig;               // .zig, .python, .javascript, .go, .rust, .plain
+cv.show_line_numbers = true;
+cv.highlight_line = 5;            // Highlight a specific line
+cv.line_separator = "\xe2\x94\x82"; // Customizable separator
+// All token styles are customizable: keyword_style, string_style,
+// comment_style, number_style, type_style, builtin_style
+const output = cv.view(allocator);
+```
+
+### DiffView
+
+Unified and side-by-side diff display:
+
+```zig
+var dv = zz.components.diff_view.DiffView{};
+dv.old_text = old_source;
+dv.new_text = new_source;
+dv.old_label = "before";
+dv.new_label = "after";
+dv.mode = .unified;               // .unified, .side_by_side
+dv.side_width = 40;               // Width per side in side-by-side mode
+dv.add_prefix = "+";              // Customizable prefixes
+dv.remove_prefix = "-";
+const output = dv.view(allocator);
+```
+
+### SubProgram
+
+Embed independent child models inside a parent:
+
+```zig
+const Counter = struct { ... }; // Has Msg, init, update, view
+
+const Model = struct {
+    child: zz.SubProgram(Counter, Msg),
+    // ...
+    pub fn init(self: *Model, ctx: *zz.Context) zz.Cmd(Msg) {
+        self.child = .{};
+        _ = self.child.init(ctx);
+    }
+    pub fn update(self: *Model, msg: Msg, ctx: *zz.Context) zz.Cmd(Msg) {
+        return self.child.update(.{ .key = k }, ctx);
+    }
+    pub fn view(self: *const Model, ctx: *const zz.Context) []const u8 {
+        return self.child.view(ctx);
+    }
+};
+```
+
+### AsyncRunner
+
+Spawn background tasks that deliver messages on completion:
+
+```zig
+var runner = zz.AsyncRunner(Msg).init(allocator);
+_ = runner.spawn(&myBackgroundTask);    // Returns task ID
+// Each frame:
+const results = runner.poll();          // Collect completed messages
+for (results) |msg| { /* process */ }
+```
+
+### Flexbox Layout
+
+Constraint-based layout engine:
+
+```zig
+const areas = try zz.flex.layout(allocator, width, height, &.{
+    .{ .constraint = .{ .fixed = 3 } },       // Header: 3 rows
+    .{ .constraint = .fill },                   // Body: remaining space
+    .{ .constraint = .{ .percentage = 10 } },  // Footer: 10%
+}, .{ .direction = .column, .gap = 1 });
+// areas[0].x, areas[0].y, areas[0].width, areas[0].height
+```
+
+Constraints: `fixed(n)`, `percentage(pct)`, `min(n)`, `max(n)`, `ratio(num, den)`, `fill`. Options: direction, gap, alignment, justify, wrap.
+
+### Layer Compositing
+
+Z-ordered overlay system for popups and modals:
+
+```zig
+var stack = zz.layout.layer.LayerStack.init(allocator);
+stack.setSize(width, height);
+stack.push(.{ .content = background, .z = 0 }) catch {};
+stack.push(.{ .content = popup, .x = 10, .y = 5, .z = 10 }) catch {};
+const output = stack.render(allocator);
+```
+
+### Text Overflow
+
+Integrated into the Style system:
+
+```zig
+var s = zz.Style{};
+s = s.width(40);
+s = s.overflow(.ellipsis);  // .visible, .hidden, .ellipsis, .word_wrap, .char_wrap
+const output = try s.render(allocator, long_text);
+```
+
 ### More Components
 
 - **Help** - Display key bindings with responsive truncation
@@ -1057,11 +1251,23 @@ zig build run-todo_list
 zig build run-text_editor
 zig build run-file_browser
 zig build run-dashboard
-zig build run-charts         # Static snapshots plus slower sampled chart updates
-zig build run-showcase       # Multi-tab demo of all features, including a Charts tab with static and live examples
-zig build run-focus_form     # Focus management with Tab cycling
-zig build run-tabs           # TabGroup multi-screen routing
+zig build run-charts          # Static snapshots plus slower sampled chart updates
+zig build run-showcase        # Multi-tab demo of all features
+zig build run-focus_form      # Focus management with Tab cycling
+zig build run-tabs            # TabGroup multi-screen routing
 zig build run-clipboard_osc52 # OSC 52 clipboard output demo
+zig build run-flex_layout     # Flexbox constraint-based layout
+zig build run-text_overflow   # Overflow policies demo
+zig build run-gauge           # Gauge component styles
+zig build run-heatmap         # 2D data heatmap visualization
+zig build run-calendar        # Calendar date picker
+zig build run-virtual_list    # 100K item virtual scrolling
+zig build run-layers          # Z-ordered layer compositing
+zig build run-sub_program     # Nested sub-program models
+zig build run-async_tasks     # Background task execution
+zig build run-sortable_table  # Sortable/filterable table
+zig build run-code_view       # Syntax-highlighted code
+zig build run-diff_view       # Unified and side-by-side diff
 ```
 
 ## Building

@@ -13,6 +13,16 @@ pub const DiffView = struct {
     mode: Mode = .unified,
     show_line_numbers: bool = true,
     context_lines: usize = 3,
+    /// Width of each side in side-by-side mode.
+    side_width: usize = 38,
+    /// Separator character for side-by-side mode.
+    separator: []const u8 = "\xe2\x94\x82",
+    /// Add prefix symbol.
+    add_prefix: []const u8 = "+",
+    /// Remove prefix symbol.
+    remove_prefix: []const u8 = "-",
+    /// Context prefix symbol.
+    context_prefix: []const u8 = " ",
 
     // Styles
     add_style: style_mod.Style = blk: {
@@ -134,7 +144,7 @@ pub const DiffView = struct {
         const new_lines = splitLines(allocator, self.new_text);
         const ops = computeDiff(allocator, old_lines, new_lines);
 
-        const half_width: usize = 38;
+        const half_width: usize = self.side_width;
 
         // Header
         const old_hdr = padRight(allocator, self.old_label, half_width);

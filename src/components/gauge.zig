@@ -30,6 +30,26 @@ pub const Gauge = struct {
     empty_color: Color = Color.gray(6),
     /// Label style.
     label_style: style_mod.Style = .{},
+    /// Value/percent label style.
+    value_style: style_mod.Style = blk: {
+        var s = style_mod.Style{};
+        s = s.inline_style(true);
+        break :blk s;
+    },
+    /// Filled bar character.
+    full_char: []const u8 = "\xe2\x96\x88",
+    /// Empty bar character.
+    empty_char: []const u8 = "\xe2\x96\x91",
+    /// Level meter bracket left.
+    bracket_left: []const u8 = "[",
+    /// Level meter bracket right.
+    bracket_right: []const u8 = "]",
+    /// Number of segments in level meter.
+    level_segments: usize = 10,
+    /// Value format string prefix.
+    value_prefix: []const u8 = "",
+    /// Value format string suffix.
+    value_suffix: []const u8 = "",
 
     pub const DisplayStyle = enum {
         /// Horizontal bar with fill characters.

@@ -28,6 +28,37 @@ pub const Heatmap = struct {
     show_values: bool = false,
     /// Title.
     title: []const u8 = "",
+    /// Cell height in rows (1 = single line).
+    cell_height: u8 = 1,
+    /// Title style.
+    title_style: style_mod.Style = blk: {
+        var s = style_mod.Style{};
+        s = s.bold(true);
+        s = s.inline_style(true);
+        break :blk s;
+    },
+    /// Row label style.
+    row_label_style: style_mod.Style = blk: {
+        var s = style_mod.Style{};
+        s = s.inline_style(true);
+        break :blk s;
+    },
+    /// Column label style.
+    col_label_style: style_mod.Style = blk: {
+        var s = style_mod.Style{};
+        s = s.inline_style(true);
+        break :blk s;
+    },
+    /// Legend label style.
+    legend_style: style_mod.Style = blk: {
+        var s = style_mod.Style{};
+        s = s.inline_style(true);
+        break :blk s;
+    },
+    /// Number of steps in the legend gradient.
+    legend_steps: usize = 10,
+    /// Empty cell character (used when value is zero/min).
+    empty_char: []const u8 = " ",
 
     pub const ColorScale = enum {
         /// Dark green to bright green (GitHub contributions style).
@@ -113,10 +144,7 @@ pub const Heatmap = struct {
 
         // Title
         if (self.title.len > 0) {
-            var ts = style_mod.Style{};
-            ts = ts.bold(true);
-            ts = ts.inline_style(true);
-            writer.writeAll(ts.render(allocator, self.title) catch self.title) catch {};
+            writer.writeAll(self.title_style.render(allocator, self.title) catch self.title) catch {};
             writer.writeByte('\n') catch {};
         }
 

@@ -12,6 +12,19 @@ pub const CodeView = struct {
     start_line: usize = 1,
     /// Highlight specific line (1-indexed, 0 = none).
     highlight_line: usize = 0,
+    /// Line number width (number of digits, 0 = auto).
+    line_number_width: u8 = 4,
+    /// Separator between line numbers and code.
+    line_separator: []const u8 = "\xe2\x94\x82",
+    /// Tab display width.
+    tab_width: u8 = 4,
+    /// Operator style.
+    operator_style: style_mod.Style = blk: {
+        var s = style_mod.Style{};
+        s = s.fg(Color.white());
+        s = s.inline_style(true);
+        break :blk s;
+    },
 
     // Styles
     keyword_style: style_mod.Style = blk: {
@@ -90,7 +103,7 @@ pub const CodeView = struct {
 
             // Line number
             if (self.show_line_numbers) {
-                const num_str = std.fmt.allocPrint(allocator, "{d:>4} \xe2\x94\x82 ", .{line_num}) catch "   ? | ";
+                const num_str = std.fmt.allocPrint(allocator, "{d:>4} {s} ", .{ line_num, self.line_separator }) catch "   ? | ";
                 writer.writeAll(self.line_number_style.render(allocator, num_str) catch num_str) catch {};
             }
 
