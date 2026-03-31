@@ -286,6 +286,9 @@ pub const AdaptiveColor = color.AdaptiveColor;
 pub const CompleteColor = color.CompleteColor;
 pub const CompleteAdaptiveColor = color.CompleteAdaptiveColor;
 
+// Overflow
+pub const Overflow = style.Overflow;
+
 // Style utilities
 pub const StyleRange = style.StyleRange;
 pub const renderWithRanges = style.renderWithRanges;
