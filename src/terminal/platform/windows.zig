@@ -265,7 +265,7 @@ pub fn readInput(state: *State, buffer: []u8, timeout_ms: i32) !usize {
     }
 
     // Read from the configured stdin handle after it is signaled as readable.
-    const stdin: std.fs.File = .{ .handle = state.stdin_handle };
+    const stdin: std.Io.File = .{ .handle = state.stdin_handle };
     return stdin.read(buffer) catch 0;
 }
 

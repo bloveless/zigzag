@@ -82,7 +82,8 @@ const Model = struct {
         label_style = label_style.fg(zz.Color.gray(12));
         label_style = label_style.inline_style(true);
 
-        const content = std.fmt.allocPrint(alloc,
+        const content = std.fmt.allocPrint(
+            alloc,
             "{s}\n\n{s} visible (default):\n{s}\n\n{s} hidden (clip):\n{s}\n\n{s} ellipsis:\n{s}\n\n{s} word_wrap:\n{s}\n\n{s} char_wrap:\n{s}\n\nPress q to quit",
             .{
                 title,
@@ -103,11 +104,8 @@ const Model = struct {
     }
 };
 
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-
-    var program = try zz.Program(Model).init(gpa.allocator());
+pub fn main(init: std.process.Init) !void {
+    var program = try zz.Program(Model).init(init.gpa, init.io, init.environ_map);
     defer program.deinit();
 
     try program.run();

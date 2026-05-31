@@ -46,15 +46,16 @@ pub fn Program(comptime Model: type) type {
 
     return struct {
         allocator: std.mem.Allocator,
+        io: std.Io,
         arena: std.heap.ArenaAllocator,
         model: Model,
         terminal: ?Terminal,
         context: Context,
         options: Options,
         running: bool,
-        clock: std.time.Timer,
-        start_time: u64,
-        last_frame_time: u64,
+        clock: std.Io.Clock,
+        start_time: std.Io.Timestamp,
+        last_frame_time: std.Io.Timestamp,
         pending_tick: ?u64,
         every_interval: ?u64,
         last_every_tick: u64,
@@ -69,23 +70,24 @@ pub fn Program(comptime Model: type) type {
         const Self = @This();
 
         /// Initialize the program
-        pub fn init(allocator: std.mem.Allocator) !Self {
-            return initWithOptions(allocator, .{});
+        pub fn init(allocator: std.mem.Allocator, io: std.Io, environ_map: *std.process.Environ.Map) !Self {
+            return initWithOptions(allocator, io, environ_map, .{});
         }
 
         /// Initialize with custom options
-        pub fn initWithOptions(allocator: std.mem.Allocator, options: Options) !Self {
+        pub fn initWithOptions(allocator: std.mem.Allocator, io: std.Io, environ_map: *std.process.Environ.Map, options: Options) !Self {
             const arena = std.heap.ArenaAllocator.init(allocator);
-            var clock = try std.time.Timer.start();
-            const now = clock.read();
+            var clock = std.Io.Clock.awake;
+            const now = clock.now(io);
             const self = Self{
                 .allocator = allocator,
+                .io = io,
                 .arena = arena,
                 .model = undefined,
                 .terminal = null,
                 // `self` is returned by value, so don't capture an arena allocator here.
                 // It would point at this function's stack copy and dangle after return.
-                .context = Context.init(allocator, allocator),
+                .context = Context.init(allocator, allocator, environ_map),
                 .options = options,
                 .running = false,
                 .clock = clock,
@@ -151,7 +153,7 @@ pub fn Program(comptime Model: type) type {
         pub fn start(self: *Self) !void {
             // Initialize logger if configured
             if (self.options.log_file) |log_path| {
-                self.logger = Logger.init(log_path) catch null;
+                self.logger = Logger.init(self.io, log_path) catch null;
                 if (self.logger != null) {
                     self.context._logger = &self.logger.?;
                 }
@@ -187,8 +189,7 @@ pub fn Program(comptime Model: type) type {
             self.context.kitty_text_sizing = width_caps.kitty_text_sizing;
             unicode.setWidthStrategy(effective_width_strategy);
 
-            self.clock.reset();
-            self.start_time = self.clock.read();
+            self.start_time = self.clock.now(self.io);
             self.last_frame_time = self.start_time;
             self.context.elapsed = 0;
             self.context.delta = 0;
@@ -210,7 +211,7 @@ pub fn Program(comptime Model: type) type {
 
         /// Execute a single frame: poll input, process events, render.
         pub fn tick(self: *Self) !void {
-            const now = self.clock.read();
+            const now = self.clock.now(self.io);
             const delta = now - self.last_frame_time;
 
             // Enforce framerate limit
@@ -223,7 +224,7 @@ pub fn Program(comptime Model: type) type {
                 sleepNs(min_frame_time_ns - delta);
             }
 
-            const frame_time = self.clock.read();
+            const frame_time = self.clock.now(self.io);
             const actual_delta = frame_time - self.last_frame_time;
             self.last_frame_time = frame_time;
 
@@ -405,7 +406,7 @@ pub fn Program(comptime Model: type) type {
             }
 
             // Avoid a large post-resume frame delta.
-            self.last_frame_time = self.clock.read();
+            self.last_frame_time = self.clock.now(self.io);
 
             // Force re-render
             self.last_view_hash = 0;

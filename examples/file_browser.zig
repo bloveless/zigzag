@@ -59,7 +59,7 @@ const Model = struct {
     fn loadPreview(self: *Model) void {
         if (self.file_picker.getSelected()) |path| {
             // Try to read file preview
-            const file = std.fs.openFileAbsolute(path, .{}) catch {
+            const file = std.Io.fs.openFileAbsolute(path, .{}) catch {
                 self.error_message = "Cannot open file";
                 self.preview.clearRetainingCapacity();
                 return;
@@ -165,11 +165,8 @@ const Model = struct {
     }
 };
 
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-
-    var program = try zz.Program(Model).init(gpa.allocator());
+pub fn main(init: std.process.Init) !void {
+    var program = try zz.Program(Model).init(init.gpa, init.io, init.environ_map);
     defer program.deinit();
 
     try program.run();

@@ -108,7 +108,8 @@ const Model = struct {
         box_s = box_s.paddingAll(1);
         box_s = box_s.width(45);
 
-        const results_text = std.fmt.allocPrint(alloc,
+        const results_text = std.fmt.allocPrint(
+            alloc,
             "1: {s}\n2: {s}\n3: {s}",
             .{ self.results[0], self.results[1], self.results[2] },
         ) catch "";
@@ -117,7 +118,8 @@ const Model = struct {
         help_s = help_s.fg(zz.Color.gray(10));
         help_s = help_s.inline_style(true);
 
-        const content = std.fmt.allocPrint(alloc,
+        const content = std.fmt.allocPrint(
+            alloc,
             "{s}\n\n{s}\n\n{s}\n\n{s}",
             .{
                 title_s.render(alloc, "Async Tasks Demo") catch "Async Tasks",
@@ -131,11 +133,8 @@ const Model = struct {
     }
 };
 
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-
-    var program = try zz.Program(Model).init(gpa.allocator());
+pub fn main(init: std.process.Init) !void {
+    var program = try zz.Program(Model).init(init.gpa, init.io, init.environ_map);
     defer program.deinit();
 
     try program.run();

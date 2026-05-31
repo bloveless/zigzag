@@ -70,8 +70,8 @@ pub const Context = struct {
         }
     }
 
-    pub fn init(allocator: std.mem.Allocator, persistent_allocator: std.mem.Allocator) Context {
-        const profile = color_mod.ColorProfile.detect();
+    pub fn init(allocator: std.mem.Allocator, persistent_allocator: std.mem.Allocator, environ_map: *std.process.Environ.Map) Context {
+        const profile = color_mod.ColorProfile.detect(environ_map);
         return .{
             .allocator = allocator,
             .persistent_allocator = persistent_allocator,
@@ -83,7 +83,7 @@ pub const Context = struct {
             .true_color = profile.supportsTrueColor(),
             .color_256 = profile.supports256(),
             .color_profile = profile,
-            .is_dark_background = color_mod.hasDarkBackground(),
+            .is_dark_background = color_mod.hasDarkBackground(environ_map),
             .unicode_width_strategy = unicode_mod.getWidthStrategy(),
             .terminal_mode_2027 = false,
             .kitty_text_sizing = false,
@@ -347,10 +347,10 @@ pub const Options = struct {
     title: ?[]const u8 = null,
 
     /// Custom input file (default: stdin)
-    input: ?std.fs.File = null,
+    input: ?std.Io.File = null,
 
     /// Custom output file (default: stdout)
-    output: ?std.fs.File = null,
+    output: ?std.Io.File = null,
 
     /// Log file path for debug output
     log_file: ?[]const u8 = null,

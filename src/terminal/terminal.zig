@@ -248,9 +248,9 @@ pub const Config = struct {
     /// Enable bracketed paste mode
     bracketed_paste: bool = true,
     /// Custom input file (default: stdin)
-    input: ?std.fs.File = null,
+    input: ?std.Io.File = null,
     /// Custom output file (default: stdout)
-    output: ?std.fs.File = null,
+    output: ?std.Io.File = null,
     /// Enable Kitty keyboard protocol
     kitty_keyboard: bool = false,
     /// OSC 52 clipboard configuration
@@ -261,8 +261,8 @@ pub const Config = struct {
 pub const Terminal = struct {
     state: platform.State,
     config: Config,
-    stdout: std.fs.File,
-    stdin: std.fs.File,
+    stdout: std.Io.File,
+    stdin: std.Io.File,
     write_buffer: [4096]u8 = undefined,
     write_pos: usize = 0,
     pending_input: [8192]u8 = undefined,
@@ -279,8 +279,8 @@ pub const Terminal = struct {
             .stdout = undefined,
             .stdin = undefined,
         } else blk: {
-            const stdout = config.output orelse std.fs.File.stdout();
-            const stdin = config.input orelse std.fs.File.stdin();
+            const stdout = config.output orelse std.Io.File.stdout();
+            const stdin = config.input orelse std.Io.File.stdin();
 
             // Apply custom fd overrides
             if (builtin.os.tag != .windows) {
@@ -758,11 +758,11 @@ pub const Terminal = struct {
 
     /// Draw a file image via iTerm2 inline image protocol (`OSC 1337`).
     /// Returns `false` when unsupported or path is empty.
-    pub fn drawIterm2ImageFromFile(self: *Terminal, path: []const u8, options: Iterm2ImageFileOptions) !bool {
+    pub fn drawIterm2ImageFromFile(self: *Terminal, io: std.Io, path: []const u8, options: Iterm2ImageFileOptions) !bool {
         if (!self.image_caps.iterm2_inline_image or path.len == 0) return false;
         if (!fileExists(path)) return false;
 
-        var file = try std.fs.cwd().openFile(path, .{});
+        var file = try std.Io.Dir.cwd().openFile(io, path, .{});
         defer file.close();
         const stat = try file.stat();
 
@@ -776,7 +776,7 @@ pub const Terminal = struct {
         try params_writer.print(";preserveAspectRatio={d}", .{if (options.preserve_aspect_ratio) @as(u8, 1) else @as(u8, 0)});
         if (!options.move_cursor) try params_writer.writeAll(";doNotMoveCursor=1");
         try params_writer.print(";size={d}", .{stat.size});
-        const file_name = std.fs.path.basename(path);
+        const file_name = std.Io.fs.path.basename(path);
         const file_name_b64_len = std.base64.standard.Encoder.calcSize(file_name.len);
         if (file_name_b64_len <= 512) {
             var file_name_b64_buf: [512]u8 = undefined;
@@ -966,12 +966,12 @@ pub const Terminal = struct {
     /// Supports either:
     /// - pre-encoded `.sixel`/`.six` data files, or
     /// - regular image files converted through `img2sixel` when available.
-    pub fn drawSixelFromFile(self: *Terminal, path: []const u8, options: SixelImageFileOptions) !bool {
+    pub fn drawSixelFromFile(self: *Terminal, io: std.Io, path: []const u8, options: SixelImageFileOptions) !bool {
         if (!self.image_caps.sixel or path.len == 0) return false;
         if (!fileExists(path)) return false;
 
         if (isSixelDataPath(path)) {
-            var file = try std.fs.cwd().openFile(path, .{});
+            var file = try std.Io.Dir.cwd().openFile(io, path, .{});
             defer file.close();
             try self.sendSixelPayloadFromFile(&file);
             return true;
@@ -1269,7 +1269,7 @@ pub const Terminal = struct {
         }
     }
 
-    fn sendIterm2InlineImagePayload(self: *Terminal, params: []const u8, file: *std.fs.File, file_size: u64) !void {
+    fn sendIterm2InlineImagePayload(self: *Terminal, params: []const u8, file: *std.Io.File, file_size: u64) !void {
         const encoder = std.base64.standard.Encoder;
         var raw_buf: [3072]u8 = undefined;
         var b64_buf: [4096]u8 = undefined;
@@ -1357,7 +1357,7 @@ pub const Terminal = struct {
         try self.writeBytes(ansi.OSC ++ "1337;FileEnd\x07");
     }
 
-    fn sendSixelPayloadFromFile(self: *Terminal, file: *std.fs.File) !void {
+    fn sendSixelPayloadFromFile(self: *Terminal, file: *std.Io.File) !void {
         var payload_buf: [4096]u8 = undefined;
         var first_read = true;
         var wrapped = false;
@@ -1788,8 +1788,8 @@ pub const Terminal = struct {
             std.mem.endsWith(u8, path, ".SIX");
     }
 
-    fn fileExists(path: []const u8) bool {
-        std.fs.cwd().access(path, .{}) catch return false;
+    fn fileExists(io: std.Io, path: []const u8) bool {
+        std.Io.Dir.cwd().access(io, path, .{}) catch return false;
         return true;
     }
 

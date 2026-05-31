@@ -117,7 +117,8 @@ const Model = struct {
 
         const active_label = if (self.active == 0) "A" else "B";
 
-        const content = std.fmt.allocPrint(alloc,
+        const content = std.fmt.allocPrint(
+            alloc,
             "{s}\n\nActive: {s}\n\n{s}\n\n{s}",
             .{
                 title_s.render(alloc, "Sub-Program Demo") catch "Sub-Program",
@@ -131,11 +132,8 @@ const Model = struct {
     }
 };
 
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-
-    var program = try zz.Program(Model).init(gpa.allocator());
+pub fn main(init: std.process.Init) !void {
+    var program = try zz.Program(Model).init(init.gpa, init.io, init.environ_map);
     defer program.deinit();
 
     try program.run();
